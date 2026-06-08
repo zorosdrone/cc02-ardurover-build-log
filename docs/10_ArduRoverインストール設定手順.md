@@ -12,7 +12,7 @@ Pixhawk 6C MiniへArduRoverをインストールし、CC-02 Roverとしてベン
 - Firmware target: `Pixhawk6C`
 - Vehicle firmware: ArduRover
 - 電源モジュール: PM02
-- GPS / Compass: 現行M8Nを流用し、`GPS2` 6ピンへまとめる
+- GPS / Compass: 旧M8Nの`GPS2`流用は保留。暫定的に別プロジェクトのM10 GPSを`GPS1` 10ピンへ接続する
 - Raspberry Pi / MAVLink: `TELEM1`へ接続する候補
 - LiDAR / RangeFinder: `TELEM2`へ接続する候補
 - ステアリング: `MAIN 1`
@@ -87,13 +87,14 @@ CONFIG / TUNING -> Full Parameter Tree -> Save to File
 | --- | --- | --- | --- | --- |
 | Raspberry Pi / MAVLink | `TELEM1` | `SERIAL1` | `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` | 現行の高速MAVLink接続を移す候補。 |
 | LiDAR / RangeFinder | `TELEM2` | `SERIAL2` | `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` | 現行`SERIAL4_PROTOCOL=9`をここへ移す。 |
-| M8N GPS | `GPS2` | `SERIAL4` | `SERIAL4_PROTOCOL=5`, `SERIAL4_BAUD=230` | 現行GPS baud `230`を参照。 |
-| 未使用GPS1 | `GPS1` | `SERIAL3` | 必要になるまで変更しない | `GPS1`はSafety/Buzzer系も含むため今回は優先しない。 |
+| 暫定M10 GPS | `GPS1` | GPS1系 | `GPS1_TYPE=1` | 2026-06-09、10ピン接続で屋内`Not Fix`、屋外`3D Fix`確認済み。 |
+| 旧M8N GPS | `GPS2` | `SERIAL4` | `SERIAL4_PROTOCOL=5`, `SERIAL4_BAUD=230`候補 | LED点灯後も`No GPS`のため流用は保留。 |
 
 注意:
 
 - 6C Miniでは`SERIAL4`が物理`GPS2`。
 - 現行LiDARの`SERIAL4_PROTOCOL=9`をそのままコピーすると、GPS2と衝突する。
+- 暫定M10 GPSを`GPS1`へ接続する場合でも、`SERIAL4`はLiDAR用に戻さない。LiDARは`TELEM2`のままにする。
 - 1つのUARTにRaspberry PiとLiDARを同時接続しない。
 
 ### GPS2 6ピン
@@ -169,6 +170,37 @@ ESC / モーター電源は接続せず、Pixhawk 6C MiniはUSB、またはPM02�
 - 現行で動いていたGPSコネクタの赤線を+5V側、黒線をGND側として扱い、6C Mini側JST-GHのPin 1/Pin 6へ対応させる。
 - 旧コネクタを6C Miniへ直接挿すのではなく、6C Mini側はJST-GH 6ピンケーブルを使って変換する。
 
+旧Pixhawk標準GPSポートのピン順:
+
+```text
+Pin1 = VCC +5V
+Pin2 = TX OUT
+Pin3 = RX IN
+Pin4 = CAN2 TX / 未使用扱い
+Pin5 = CAN2 RX / 未使用扱い
+Pin6 = GND
+```
+
+現行M8N GPS側の信号としては、FCのTXを受けるPin2がGPS RX、FCのRXへ送るPin3がGPS TXになる。
+
+現行GPS 6ピンケーブルの対応:
+
+```text
+赤 = Pin1 +5V
+黄 = Pin2 GPS RX
+緑 = Pin3 GPS TX
+黒 = Pin6 GND
+```
+
+6C Mini `GPS2`へGPS単体確認用に接続する場合:
+
+```text
+6C Mini GPS2 Pin1 VCC      -> 現行GPS 赤 +5V
+6C Mini GPS2 Pin2 UART_TX  -> 現行GPS 黄 GPS RX
+6C Mini GPS2 Pin3 UART_RX  -> 現行GPS 緑 GPS TX
+6C Mini GPS2 Pin6 GND      -> 現行GPS 黒 GND
+```
+
 テスターで電圧を測る場合は、通電後にまず`VCC-GND`間が約5Vであることだけ確認する。
 TX/RX/SCL/SDAへテスター棒を当ててショートさせないよう注意する。
 
@@ -176,6 +208,9 @@ Mission Plannerで確認すること:
 
 1. `SERIAL4_PROTOCOL=5`、`SERIAL4_BAUD=230`を設定する。
 2. GPS種別はAuto / u-blox系のままにする。
+   - GPSが1台だけなら設定対象は`GPS1_TYPE`。
+   - 物理ポート`GPS2`へ接続していても、ArduPilot上では1台目GPSなので`GPS1_TYPE=1`でよい。
+   - `GPS2_TYPE`または`GPS_TYPE2`は2台目GPS用であり、今回のM8N 1台構成では設定しない。
 3. 再起動する。
 4. `DATA`画面でGPS状態、衛星数、HDOPを確認する。
 5. 屋内で3D Fixしなくても、GPSが認識されて衛星数が増えるかを見る。
@@ -190,6 +225,13 @@ Mission Plannerで確認すること:
 | GPSは認識されるがFixしない | 衛星数、HDOP、GPS LED | 屋内、アンテナ位置、空が見えない、初回測位待ち |
 | GPSは認識されるがCompassが出ない | Compass画面 | SCL/SDA逆、I2C線未接続、外部Compass設定 |
 | Compassエラーが出る | PreArm message、Compass画面 | 搭載位置、電源線/ESC/モーターの磁気影響、キャリブレーション未実施 |
+
+2026-06-09:
+
+- 別プロジェクトのM10 GPSを`GPS1` 10ピンへ接続し、Mission Plannerで屋内`Not Fix`、屋外`3D Fix`を確認。
+- `Not Fix`はGPS未認識ではなく、GPS認識済みでFix待ちの状態として扱う。
+- Compass画面でIST8310系コンパスが見えていることを確認。
+- `Compass not calibrated`は表示中。次は搭載位置を決めてからCompass Calibrationを行う。
 
 GPSだけ確認したい場合でも、GPS2 6ピンへまとめる方針ではCompass I2C線も同時に確認しておく。
 
@@ -263,6 +305,46 @@ Pixhawk 6C Mini公式情報では、Power Monitor 1の候補値は以下。
 1. テスターでLiPo電圧を測る。
 2. Mission PlannerのBattery表示と比較する。
 3. 0.2V以上ずれる場合はBattery Monitor画面で電圧キャリブレーションする。
+
+2026-06-09の確認:
+
+```text
+実測電圧: 12.40V
+Mission Planner表示: 12.11V
+差分: -0.29V
+表示誤差: 約-2.3%
+補正係数: 12.40 / 12.11 = 約1.024
+```
+
+注意:
+
+- 上記の測定はスモークストッパー使用時の可能性がある。
+- スモークストッパー経由の電圧は、保護素子や配線抵抗による電圧降下を含む可能性があるため、PM02の電圧校正根拠にしない。
+- `BATT_VOLT_MULT=18.182`は暫定値として扱い、通常給電で再測定してから最終判断する。
+
+スモークストッパーが入っていない通常給電で同じ差が出た場合、`BATT_VOLT_MULT=18.182`からの単純計算の補正候補は以下。
+
+```text
+18.182 * 12.40 / 12.11 = 約18.62
+```
+
+2026-06-09:
+
+- `BATT_VOLT_MULT=18.182`を実機へ暫定設定済み。
+- スモークストッパー使用時の可能性があるため、この値は校正根拠にしない。
+- 次に、スモークストッパーを外した通常給電でテスター実測とMission Planner表示を再比較する。
+- 再測定後も低めに出る場合だけ、補正を検討する。
+
+スモークストッパーなしの再測定:
+
+```text
+実測電圧: 12.40V
+Mission Planner表示: 12.44V
+差分: +0.04V
+表示誤差: 約+0.3%
+```
+
+この差は実用上小さいため、`BATT_VOLT_MULT=18.182`のまま追加補正しない。
 4. 電流表示は低電流では誤差が大きいので、最初は「異常に大きい/ゼロ固定でないか」の確認に留める。
 
 ## 5. サーボ / ESC出力
@@ -281,14 +363,14 @@ ArduRoverの通常RCカー構成では、ステアリングはOutput 1、スロ�
 | `SERVO1_MIN` / `SERVO1_MAX` | `1100` / `1900` | ステアリング範囲。ベンチで再確認。 |
 | `SERVO3_MIN` / `SERVO3_MAX` | `1350` / `1750` | ESC範囲。ニュートラルと前後進を再確認。 |
 | `RC1_TRIM` | `1490` | ステアリング中立参考。 |
-| `RC3_TRIM` | `1510` | スロットル中立参考。 |
+| `RC3_TRIM` | `1510` | 旧スロットルCh3時代の参考値。2026-06-09以降の前進/後進入力はCh2。 |
 
 ## 6. RC入力とモード
 
 | 項目 | パラメータ | 候補値 / 方針 |
 | --- | --- | --- |
 | ステアリング入力 | `RCMAP_ROLL` | `1` |
-| スロットル入力 | `RCMAP_THROTTLE` | `3` |
+| スロットル入力 | `RCMAP_THROTTLE` | `2` |
 | モードチャンネル | `MODE_CH` | `8` |
 | 補助スイッチ | `RC7_OPTION` | 現行`153`を維持候補。実機スイッチで再確認。 |
 
@@ -298,10 +380,76 @@ Mission Planner:
 INITIAL SETUP -> Mandatory Hardware -> Radio Calibration
 ```
 
+### 6.1 プロポ / 受信機を認識させる手順
+
+この段階では、まだRCキャリブレーションを完了させる必要はない。
+まずMission Planner上でRC入力バーが動くことだけを確認する。
+
+前提:
+
+- 送信機: RadioLink T8FB BT
+- 受信機: RadioLink R8EF V1.6
+- 接続方式: SBUS
+- R8EF側: `S.BUS / CH1`
+- Pixhawk 6C Mini側: `RC IN`
+
+安全前提:
+
+- ESC / モーター電源は入れない。
+- ESCを接続済みの場合は、タイヤを浮かせる。
+- 送信機のスロットルは中立。
+- スロットルカットが使える場合はON。
+
+手順:
+
+1. 送信機 T8FB BT の電源を入れる。
+2. スロットルを中立にする。
+3. R8EF受信機の `S.BUS / CH1` から Pixhawk 6C Mini の `RC IN` へ接続する。
+4. Pixhawk 6C Miniへ給電する。
+5. R8EFのLED状態を確認する。
+   - SBUS系モードになっていることを確認する。
+   - PWM専用モードの場合は、R8EFのモードをSBUS系へ切り替える。
+6. Mission PlannerでPixhawkへ接続する。
+7. 以下を開く。
+
+```text
+INITIAL SETUP -> Mandatory Hardware -> Radio Calibration
+```
+
+8. ステアリングを動かし、`Radio 1` または `RC1` のバーが動くことを確認する。
+9. スロットルを動かし、`Radio 2` または `RC2` のバーが動くことを確認する。
+10. モードスイッチを動かし、`Radio 8` または `RC8` のバーが動くことを確認する。
+
+ここまで確認できれば、プロポ / 受信機はPixhawk側に認識されている。
+
+2026-06-09:
+
+- RadioLink R8EF / T8FB BT は Pixhawk 6C Mini `RC IN`で認識OK。
+- 次は、`RC1`ステアリング、`RC2`スロットル、`RC8`モードスイッチの割り当て確認とRadio Calibrationを行う。
+- RCフェイルセーフ確認は未実施。タイヤを浮かせた状態で別途確認する。
+
+期待する割り当て:
+
+| 操作 | Mission Planner上の入力 | パラメータ |
+| --- | --- | --- |
+| ステアリング | `RC1` | `RCMAP_ROLL=1` |
+| スロットル | `RC2` | `RCMAP_THROTTLE=2` |
+| モードスイッチ | `RC8` | `MODE_CH=8` |
+
+認識しない場合:
+
+| 症状 | 確認すること |
+| --- | --- |
+| RCバーが何も動かない | R8EFがバインド済みか、`S.BUS / CH1`から`RC IN`へ接続しているか、`S / + / -`の向きが正しいか |
+| 一部のチャンネルだけ動く | T8FB側のチャンネル割り当て、ミキシング、エンドポイント |
+| スロットルが`RC2`以外で動く | `RCMAP_THROTTLE`またはプロポ側チャンネル割り当て |
+| ステアリングが`RC1`以外で動く | `RCMAP_ROLL`またはプロポ側チャンネル割り当て |
+| プロポOFFでRadio failsafeにならない | T8FB/R8EF側のFail Safe設定、`FS_THR_ENABLE`、`FS_THR_VALUE` |
+
 確認:
 
 - ステアリング操作でRC1が動く。
-- スロットル操作でRC3が動く。
+- スロットル操作でRC2が動く。
 - スロットル中立が1500us付近になる。
 - 送信機OFFでRCフェイルセーフが発生する。
 
@@ -320,6 +468,15 @@ Safety Buttonは移植しないため、以下の方針にする。
 | DISARM時出力 | `MOT_SAFE_DISARM` | 安全側は`1`候補。ESCの挙動を見て判断。 |
 
 GPS関連のPreArm判断は、`ARMING_CHECK`を有効にしたうえでMission PlannerのPreArm message、GPS fix、EKF状態を確認する。現行パラメータに存在するGPS関連の参照値は、`GPS1_TYPE=1`、`AHRS_GPS_USE=1`、`AHRS_GPS_MINSATS=6`。
+
+室内Manual走行テストでは、磁気環境が悪いため一時的に以下を使う場合がある。
+
+```text
+COMPASS_ENABLE = 0
+```
+
+これは室内の低速Manual走行確認専用の一時設定とする。
+屋外走行、Auto、Guided、RTL、SmartRTL、GPS/EKF評価へ進む前には、`COMPASS_ENABLE=1`へ戻し、M10 GPS/Compassを搭載位置に固定してCompass Calibrationを行う。
 
 物理安全策:
 
@@ -461,9 +618,11 @@ Mission PlannerのMandatory Hardwareで実施する。
 1. Accel Calibration
    - FCを実際の搭載向きで固定してから行う。
 2. Compass Calibration
-   - 外部M8N Compassを使う。
-   - 内蔵Compassが干渉する場合は、使用コンパスを外部優先にする。
+   - 暫定M10 GPS内蔵Compassを使う。
+   - Mission PlannerのCompass PriorityでIST8310系Compassが見えていることを確認済み。
+   - 内蔵Compassが干渉する場合は、使用コンパスを外部M10側優先にする。
    - GPS/Compassも実際の搭載位置、またはそれに近い仮固定状態で行う。
+   - 室内Manual走行テストで`COMPASS_ENABLE=0`にした場合は、屋外/自律系確認前に`COMPASS_ENABLE=1`へ戻してから行う。
 3. Radio Calibration
    - 受信機と送信機の接続確認後に行う。これはFCの搭載向きには依存しない。
 4. Servo Output確認
