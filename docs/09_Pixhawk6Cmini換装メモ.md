@@ -70,8 +70,22 @@ Pixhawk 6C miniへ流用する場合は、以下のように考える。
 
 ```text
 現行M8N GPS
-  ├─ GPS UART線     → Pixhawk 6C mini の GPS系ポートへ変換接続
-  └─ Compass I2C線  → Pixhawk 6C mini の I2Cポートへ変換接続
+  ├─ GPS UART線
+  └─ Compass I2C線
+        ↓
+  Pixhawk 6C mini の GPS2 6ピンへ変換接続
+```
+
+Pixhawk 6C miniの`GPS2`は6ピン対応のため、現行M8NのGPS UARTとCompass I2Cを1本の6ピン変換ケーブルにまとめる方針にする。
+
+```text
+GPS2 6ピンで使う信号
+  - VCC
+  - UART TX
+  - UART RX
+  - I2C SCL
+  - I2C SDA
+  - GND
 ```
 
 注意点:
@@ -239,8 +253,10 @@ GPSは現行M8Nを流用。
 
 ```text
 現行M8N GPS
-  ├─ GPS UART → Pixhawk 6C mini GPS系ポートへ変換
-  └─ Compass I2C → Pixhawk 6C mini I2Cへ変換
+  ├─ GPS UART
+  └─ Compass I2C
+        ↓
+  Pixhawk 6C mini GPS2 6ピンへ変換
 ```
 
 Buzzer:
@@ -260,18 +276,19 @@ ESC電源物理カット + RCスロットルカット + ARMING_CHECKで代替。
 Power Module:
 
 ```text
-Pixhawk 6C mini対応Power Moduleを使うのが安全。
-既存Power Moduleを流用する場合は、5V / GND / 電圧検出 / 電流検出のピン配列を必ず確認。
+PM02を使用する。
+PM02はPixhawk 6C miniとセットで購入したパワーモジュール。
+既存Pixhawk 2.4.8Pro側のPower Moduleは流用しない。
+換装後にMission Plannerで電圧/電流表示を確認し、BATT_* パラメータを再確認する。
 ```
 
 ## 結論
 
 - GPSは現行M8Nを流用する。
-- M8Nの2股はGPS UARTとCompass I2Cなので、それぞれ6C mini側へ変換接続する。
+- M8Nの2股はGPS UARTとCompass I2Cなので、6C mini側では`GPS2` 6ピンへまとめて変換接続する方針。
 - Buzzerは使わない。
 - Buzzerの代替は `rover-gcs` / PC側の警告音と画面警告。
 - Safety Buttonも使わない。
 - Safety Buttonの代替はESC / モーター電源の物理カット、RCスロットルカット、ArduPilotの `ARMING_CHECK`。
 - ローバー用途ではこの代替で実用上問題ない。
 - `rover-gcs` 側では、ARM状態、Failsafe、Battery、GPS、STATUSTEXT、通信断の警告表示と音通知を追加するとよい。
-
