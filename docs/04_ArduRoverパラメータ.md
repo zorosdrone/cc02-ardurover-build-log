@@ -31,6 +31,13 @@ params/tuned/2026-06-07_pixhawk6c_tuned_01.param
 | ボード向き | `AHRS_ORIENTATION` | | |
 | フライトモードチャンネル | `FLTMODE_CH` | | |
 | RCフェイルセーフ | `FS_THR_ENABLE` | | |
+| バッテリーモニタ | `BATT_MONITOR` | PM02接続後に確認 | 旧FCの値を丸コピーせず、6C Mini + PM02構成で確認する。 |
+| 電圧ピン | `BATT_VOLT_PIN` | PM02接続後に確認 | Pixhawk 2.4.8Pro時代の値は参考値扱い。 |
+| 電流ピン | `BATT_CURR_PIN` | PM02接続後に確認 | Pixhawk 2.4.8Pro時代の値は参考値扱い。 |
+| 電圧倍率 | `BATT_VOLT_MULT` | PM02接続後に確認 | 実測電圧とMission Planner表示を比較して必要なら調整する。 |
+| Raspberry Pi / MAVLink | `SERIAL1_PROTOCOL` / `SERIAL1_BAUD` | `2` / `921`候補 | 6C MiniでRaspberry Piを`TELEM1`へ移す場合の候補。実ポート確認後に設定する。 |
+| LiDAR / RangeFinder | `SERIAL2_PROTOCOL` / `SERIAL2_BAUD` | `9` / `115`候補 | 6C MiniでLiDARを`TELEM2`へ接続する場合の候補。現行`SERIAL4_PROTOCOL=9`, `SERIAL4_BAUD=115`から移す。 |
+| GPS2 | `SERIAL4_PROTOCOL` | `5`候補 | 6C Miniでは`SERIAL4`が物理`GPS2`。現行M8N GPS用に使うため、RangeFinder設定を丸コピーしない。 |
 | ステアリング出力 | | | |
 | スロットル出力 | | | |
 | 速度制御 | | | |
@@ -49,4 +56,3 @@ params/tuned/2026-06-07_pixhawk6c_tuned_01.param
 - ファームウェアバージョン:
 - 意図的に復元しなかったパラメータ:
 - 復元後に再実施したキャリブレーション:
-

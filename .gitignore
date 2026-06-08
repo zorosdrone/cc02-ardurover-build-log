@@ -17,3 +17,6 @@ Thumbs.db
 /参考資料/Pixhawk2.4.8Pro_RCToySky/**/*
 !/参考資料/Pixhawk2.4.8Pro_RCToySky/**/
 !/参考資料/Pixhawk2.4.8Pro_RCToySky/保存資料一覧.md
+/参考資料/TF-luna/**/*
+!/参考資料/TF-luna/**/
+!/参考資料/TF-luna/保存資料一覧.md
