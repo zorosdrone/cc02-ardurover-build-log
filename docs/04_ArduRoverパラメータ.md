@@ -38,6 +38,10 @@ params/tuned/20260608_pixhawk6c_tuned_01.param
 | Raspberry Pi / MAVLink | `SERIAL1_PROTOCOL` / `SERIAL1_BAUD` | `2` / `921` | `TELEM1`へ移す候補。 |
 | LiDAR / RangeFinder | `SERIAL2_PROTOCOL` / `SERIAL2_BAUD` | `9` / `115` | `TELEM2`へ移す候補。現行`SERIAL4`から移す。 |
 | M8N GPS | `SERIAL4_PROTOCOL` / `SERIAL4_BAUD` | `5` / `230` | 6C Miniでは`SERIAL4`が物理`GPS2`。 |
+| LiDAR / RangeFinder | `RNGFND1_TYPE` | `20` | 現行TF-Luna設定を維持候補。 |
+| LiDAR / RangeFinder | `RNGFND1_MIN_CM` | `20` | 現行値を維持候補。 |
+| LiDAR / RangeFinder | `RNGFND1_MAX_CM` | `200` | 現行値を踏襲。rover-gcsのAuto-stop最大閾値`100cm`を十分カバーする。`700`は必要時の一時確認値。 |
+| LiDAR / RangeFinder | `RNGFND1_SCALING` | `3` | 現行値を維持候補。 |
 | ステアリング | `SERVO1_FUNCTION` | `26` | `MAIN 1`、Ground Steering。 |
 | ESC / スロットル | `SERVO3_FUNCTION` | `70` | `MAIN 3`、Throttle。 |
 | モード | `MODE_CH` | `8` | 現行モードチャンネルを維持候補。 |
@@ -61,6 +65,7 @@ params/tuned/20260608_pixhawk6c_tuned_01.param
 | Raspberry Pi / MAVLink | `SERIAL1_PROTOCOL` / `SERIAL1_BAUD` | `2` / `921`候補 | 6C MiniでRaspberry Piを`TELEM1`へ移す場合の候補。実ポート確認後に設定する。 |
 | LiDAR / RangeFinder | `SERIAL2_PROTOCOL` / `SERIAL2_BAUD` | `9` / `115`候補 | 6C MiniでLiDARを`TELEM2`へ接続する場合の候補。現行`SERIAL4_PROTOCOL=9`, `SERIAL4_BAUD=115`から移す。 |
 | GPS2 | `SERIAL4_PROTOCOL` | `5`候補 | 6C Miniでは`SERIAL4`が物理`GPS2`。現行M8N GPS用に使うため、RangeFinder設定を丸コピーしない。 |
+| RangeFinder最大距離 | `RNGFND1_MAX_CM` | `200`候補 | 現行値を踏襲。Auto-stop運用では`40 / 60 / 80 / 100cm`を監視するため、`200cm`で足りる。 |
 | ステアリング出力 | `SERVO1_FUNCTION` | `26` | `MAIN 1`。 |
 | スロットル出力 | `SERVO3_FUNCTION` | `70` | `MAIN 3`。 |
 | 速度制御 | | | |
@@ -73,6 +78,7 @@ params/tuned/20260608_pixhawk6c_tuned_01.param
 | 2026-06-08 | `SERIAL1_PROTOCOL` / `SERIAL1_BAUD` | 現行`SERIAL2_PROTOCOL=2`, `SERIAL2_BAUD=921` | `2` / `921`候補 | Raspberry Pi / MAVLinkを6C Mini `TELEM1`へ移すため | 未実施 |
 | 2026-06-08 | `SERIAL2_PROTOCOL` / `SERIAL2_BAUD` | 現行LiDARは`SERIAL4_PROTOCOL=9`, `SERIAL4_BAUD=115` | `9` / `115`候補 | LiDARを6C Mini `TELEM2`へ移すため | 未実施 |
 | 2026-06-08 | `SERIAL4_PROTOCOL` / `SERIAL4_BAUD` | 現行LiDAR設定 | `5` / `230`候補 | 6C Miniでは`SERIAL4`が物理`GPS2`のため、M8N GPS用に使う | 未実施 |
+| 2026-06-08 | `RNGFND1_MAX_CM` | `200` | `200`候補 | rover-gcsのAuto-stop最大閾値`100cm`を十分カバーするため現行値を踏襲。`700`は必要時の一時確認値 | 未実施 |
 
 ## 復元メモ
 
