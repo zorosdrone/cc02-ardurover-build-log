@@ -46,7 +46,7 @@ Pixhawk系は ArduPilot / PX4 で使われるオープンなFCハードウェア
 - ピン配列の違い
 - Buzzer / Safety Button の扱い
 - GPSの2股配線の扱い
-- Power Moduleの互換性
+- PM02への電源・電圧電流監視設定
 
 ## GPSの2股について
 
@@ -212,7 +212,13 @@ Safety Buttonの役割:
 - `FS_GCS_ENABLE`
   - GCS依存運用なら確認
 - `BATT_*`
-  - Power Module変更または配線変更後に再確認
+  - PM02接続後に再確認
+- `SERIAL1_PROTOCOL` / `SERIAL1_BAUD`
+  - Raspberry Pi / MAVLinkを`TELEM1`へ移す候補
+- `SERIAL2_PROTOCOL` / `SERIAL2_BAUD`
+  - LiDAR / RangeFinderを`TELEM2`へ移す候補
+- `SERIAL4_PROTOCOL` / `SERIAL4_BAUD`
+  - Pixhawk 6C Miniでは物理`GPS2`。現行LiDAR設定を丸コピーしない
 - Compass calibration
 - Accelerometer calibration
 - RC calibration
@@ -282,10 +288,24 @@ PM02はPixhawk 6C miniとセットで購入したパワーモジュール。
 換装後にMission Plannerで電圧/電流表示を確認し、BATT_* パラメータを再確認する。
 ```
 
+LiDAR / RangeFinder:
+
+```text
+現行はSERIAL4系。
+Pixhawk 6C MiniではSERIAL4が物理GPS2に対応するため、LiDARには使わない。
+
+推奨:
+  Raspberry Pi / MAVLink -> TELEM1
+  LiDAR / RangeFinder    -> TELEM2
+  M8N GPS + Compass      -> GPS2
+```
+
 ## 結論
 
 - GPSは現行M8Nを流用する。
 - M8Nの2股はGPS UARTとCompass I2Cなので、6C mini側では`GPS2` 6ピンへまとめて変換接続する方針。
+- LiDAR / RangeFinderは`TELEM2`へ移し、`SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115`を候補にする。
+- Raspberry Pi / MAVLinkは`TELEM1`へ移し、`SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921`を候補にする。
 - Buzzerは使わない。
 - Buzzerの代替は `rover-gcs` / PC側の警告音と画面警告。
 - Safety Buttonも使わない。
