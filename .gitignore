@@ -11,6 +11,9 @@ Thumbs.db
 
 # 公式サイトからダウンロードした参考資料本体はGit管理しない。
 # 資料一覧MarkdownだけをGit管理する。
-/参考資料/*/**/*
-!/参考資料/*/**/
-!/参考資料/*/**/保存資料一覧.md
+/参考資料/Pixhawk6Cmini_Holybro/**/*
+!/参考資料/Pixhawk6Cmini_Holybro/**/
+!/参考資料/Pixhawk6Cmini_Holybro/保存資料一覧.md
+/参考資料/Pixhawk2.4.8Pro_RCToySky/**/*
+!/参考資料/Pixhawk2.4.8Pro_RCToySky/**/
+!/参考資料/Pixhawk2.4.8Pro_RCToySky/保存資料一覧.md
