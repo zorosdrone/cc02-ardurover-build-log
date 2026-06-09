@@ -65,3 +65,4 @@ GCSアプリ本体は別リポジトリで管理します。
 - [部品リスト](docs/08_部品リスト.md)
 - [Pixhawk 6C mini換装メモ](docs/09_Pixhawk6Cmini換装メモ.md)
 - [ArduRoverインストール設定手順](docs/10_ArduRoverインストール設定手順.md)
+- [ArduRoverチューニング手順](docs/11_ArduRoverチューニング手順.md)
