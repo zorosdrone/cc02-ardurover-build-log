@@ -214,9 +214,9 @@ Safety Buttonの役割:
 - `BATT_*`
   - PM02接続後に再確認
 - `SERIAL1_PROTOCOL` / `SERIAL1_BAUD`
-  - Raspberry Pi / MAVLinkを`TELEM1`へ移す候補
+  - Raspberry Pi / MAVLinkは`TELEM1`へ移行済み。現在値は`SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921`
 - `SERIAL2_PROTOCOL` / `SERIAL2_BAUD`
-  - LiDAR / RangeFinderを`TELEM2`へ移す候補
+  - LiDAR / RangeFinderは`TELEM2`へ移行済み。現在値は`SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115`
 - `SERIAL4_PROTOCOL` / `SERIAL4_BAUD`
   - Pixhawk 6C Miniでは物理`GPS2`。現行LiDAR設定を丸コピーしない
 - Compass calibration
@@ -302,10 +302,10 @@ Pixhawk 6C MiniではSERIAL4が物理GPS2に対応するため、LiDARには使�
 
 ## 結論
 
-- GPSは現行M8Nを流用する。
-- M8Nの2股はGPS UARTとCompass I2Cなので、6C mini側では`GPS2` 6ピンへまとめて変換接続する方針。
-- LiDAR / RangeFinderは`TELEM2`へ移し、`SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115`を候補にする。
-- Raspberry Pi / MAVLinkは`TELEM1`へ移し、`SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921`を候補にする。
+- 旧M8Nの`GPS2`流用は`No GPS`で保留する。
+- 現在は暫定M10 GPSを`GPS1` 10ピンへ接続し、屋外`3D Fix`まで確認済み。
+- LiDAR / RangeFinderは`TELEM2`へ移行済み。現在値は`SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115`。
+- Raspberry Pi / MAVLinkは`TELEM1`へ移行済み。現在値は`SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921`。
 - Buzzerは使わない。
 - Buzzerの代替は `rover-gcs` / PC側の警告音と画面警告。
 - Safety Buttonも使わない。

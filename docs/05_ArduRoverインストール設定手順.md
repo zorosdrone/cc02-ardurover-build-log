@@ -13,11 +13,13 @@ Pixhawk 6C MiniへArduRoverをインストールし、CC-02 Roverとしてベン
 - Vehicle firmware: ArduRover
 - 電源モジュール: PM02
 - GPS / Compass: 旧M8Nの`GPS2`流用は保留。暫定的に別プロジェクトのM10 GPSを`GPS1` 10ピンへ接続する
-- Raspberry Pi / MAVLink: `TELEM1`へ接続する候補
-- LiDAR / RangeFinder: `TELEM2`へ接続する候補
+- Raspberry Pi / MAVLink: `TELEM1`へ接続済み
+- LiDAR / RangeFinder: `TELEM2`へ接続済み
 - ステアリング: `MAIN 1`
 - ESC / スロットル: `MAIN 3`
 - Safety Button / Buzzer: 移植しない
+
+現在のチューニング前ベースラインは `params/tuned/20260610_before_tune.param`。この手順内の「候補値」は初期設定時の目安であり、現在値は [ArduRoverパラメータ](06_ArduRoverパラメータ.md) を正とする。
 
 ## 公式資料
 
@@ -85,8 +87,8 @@ CONFIG / TUNING -> Full Parameter Tree -> Save to File
 
 | 用途 | 6C Mini物理ポート | ArduPilot Serial | 初期設定候補 | メモ |
 | --- | --- | --- | --- | --- |
-| Raspberry Pi / MAVLink | `TELEM1` | `SERIAL1` | `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` | 現行の高速MAVLink接続を移す候補。 |
-| LiDAR / RangeFinder | `TELEM2` | `SERIAL2` | `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` | 現行`SERIAL4_PROTOCOL=9`をここへ移す。 |
+| Raspberry Pi / MAVLink | `TELEM1` | `SERIAL1` | `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` | 移行済み。動作確認OK。 |
+| LiDAR / RangeFinder | `TELEM2` | `SERIAL2` | `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` | 移行済み。Mission PlannerでSonar Range表示OK。 |
 | 暫定M10 GPS | `GPS1` | GPS1系 | `GPS1_TYPE=1` | 2026-06-09、10ピン接続で屋内`Not Fix`、屋外`3D Fix`確認済み。 |
 | 旧M8N GPS | `GPS2` | `SERIAL4` | `SERIAL4_PROTOCOL=5`, `SERIAL4_BAUD=230`候補 | LED点灯後も`No GPS`のため流用は保留。 |
 
@@ -231,9 +233,9 @@ Mission Plannerで確認すること:
 - 別プロジェクトのM10 GPSを`GPS1` 10ピンへ接続し、Mission Plannerで屋内`Not Fix`、屋外`3D Fix`を確認。
 - `Not Fix`はGPS未認識ではなく、GPS認識済みでFix待ちの状態として扱う。
 - Compass画面でIST8310系コンパスが見えていることを確認。
-- `Compass not calibrated`は表示中。次は搭載位置を決めてからCompass Calibrationを行う。
+- 当時は`Compass not calibrated`表示あり。2026-06-10現在はCompassオフセット値が入っているため、屋外前に`COMPASS_ENABLE=1`へ戻し、搭載位置固定後にPreArmと磁場差を再確認する。
 
-GPSだけ確認したい場合でも、GPS2 6ピンへまとめる方針ではCompass I2C線も同時に確認しておく。
+旧M8Nを再開する場合だけ、GPS2 6ピンへまとめる方針でCompass I2C線も同時に確認する。現在の屋外チューニング前確認は、暫定M10 GPS / Compassの`GPS1`接続を前提に進める。
 
 ### OLED Module I2C実験
 
@@ -344,7 +346,9 @@ Mission Planner表示: 12.44V
 表示誤差: 約+0.3%
 ```
 
-この差は実用上小さいため、`BATT_VOLT_MULT=18.182`のまま追加補正しない。
+この差は実用上小さいため、当時は`BATT_VOLT_MULT=18.182`のまま追加補正しない判断とした。
+
+2026-06-10現在の `params/tuned/20260610_before_tune.param` では `BATT_VOLT_MULT=18.62`。走行前に通常給電・テスター実測・Mission Planner表示を再比較し、`18.182`と`18.62`のどちらを採用するか [ArduRoverパラメータ](06_ArduRoverパラメータ.md) と [チューニングログ](09_チューニングログ.md) に記録する。
 4. 電流表示は低電流では誤差が大きいので、最初は「異常に大きい/ゼロ固定でないか」の確認に留める。
 
 ## 5. サーボ / ESC出力
@@ -371,8 +375,8 @@ ArduRoverの通常RCカー構成では、ステアリングはOutput 1、スロ�
 | --- | --- | --- |
 | ステアリング入力 | `RCMAP_ROLL` | `1` |
 | スロットル入力 | `RCMAP_THROTTLE` | `2` |
-| モードチャンネル | `MODE_CH` | `8` |
-| 補助スイッチ | `RC7_OPTION` | 現行`153`を維持候補。実機スイッチで再確認。 |
+| モードチャンネル | `MODE_CH` | 現在値は`5`。旧記録/初期候補の`8`と混同しない。 |
+| 補助スイッチ | `RC7_OPTION` | 現在値`153`。意味が確定するまで変更しない。 |
 
 Mission Planner:
 
@@ -418,14 +422,14 @@ INITIAL SETUP -> Mandatory Hardware -> Radio Calibration
 
 8. ステアリングを動かし、`Radio 1` または `RC1` のバーが動くことを確認する。
 9. スロットルを動かし、`Radio 2` または `RC2` のバーが動くことを確認する。
-10. モードスイッチを動かし、`Radio 8` または `RC8` のバーが動くことを確認する。
+10. モードスイッチを動かし、現在の `MODE_CH=5` に対応する `Radio 5` / `RC5` のバーが動くことを確認する。旧記録にある `Radio 8` / `RC8` は現在値ではない。
 
 ここまで確認できれば、プロポ / 受信機はPixhawk側に認識されている。
 
 2026-06-09:
 
 - RadioLink R8EF / T8FB BT は Pixhawk 6C Mini `RC IN`で認識OK。
-- 次は、`RC1`ステアリング、`RC2`スロットル、`RC8`モードスイッチの割り当て確認とRadio Calibrationを行う。
+- 次は、`RC1`ステアリング、`RC2`スロットル、`MODE_CH=5`のモードスイッチ割り当て確認とRadio Calibrationを行う。
 - RCフェイルセーフ確認は未実施。タイヤを浮かせた状態で別途確認する。
 
 期待する割り当て:
@@ -434,7 +438,7 @@ INITIAL SETUP -> Mandatory Hardware -> Radio Calibration
 | --- | --- | --- |
 | ステアリング | `RC1` | `RCMAP_ROLL=1` |
 | スロットル | `RC2` | `RCMAP_THROTTLE=2` |
-| モードスイッチ | `RC8` | `MODE_CH=8` |
+| モードスイッチ | `RC5` | `MODE_CH=5` |
 
 認識しない場合:
 
@@ -497,6 +501,8 @@ RNGFND1_MIN_CM = 20
 RNGFND1_MAX_CM = 200
 RNGFND1_SCALING = 3
 ```
+
+2026-06-10現在の `params/tuned/20260610_before_tune.param` では `RNGFND1_MAX_CM=700`。`200`はAuto-stop最大閾値`100cm`を十分カバーする候補値、`700`は現在値として扱う。どちらを採用するかは、実測距離、GCS表示、屋外反射条件、Auto-stop閾値で判断する。
 
 ### TF-Luna 6ピンコネクタ
 
@@ -563,7 +569,7 @@ TX/RXは、接続先のTF-Luna側の色に合わせて、`TX=青`, `RX=黄` と�
 - 通電前に`VCC-GND`ショートがないことを確認する。
 - 通電後、TF-Luna側に5Vが来ていることを確認してからMission Plannerで距離値を見る。
 
-`RNGFND1_MAX_CM=200`は換装前の現行値であり、rover-gcsのAuto-stop閾値範囲 `40 / 60 / 80 / 100cm` を十分にカバーする。通常設定では`200`を踏襲する。
+`RNGFND1_MAX_CM=200`は換装前の現行値であり、rover-gcsのAuto-stop閾値範囲 `40 / 60 / 80 / 100cm` を十分にカバーする。ただし2026-06-10現在値は`700`のため、通常設定として`200`へ戻すか、屋外実測のため`700`を維持するかを記録してから変更する。
 
 `700`はデフォルト相当の広い確認値としては使えるが、この機体のAuto-stop運用では遠距離値を拾う必要が薄いため、必要な場合だけ一時的な動作確認値として使う。
 
@@ -670,8 +676,9 @@ params/after_fc_replace/YYYYMMDD_pixhawk6c_bench_ok.param
 
 以下のどれかが残る場合は走行しない。
 
-- GPS2のTX/RXまたはI2Cが未確認
-- Compass calibration未完了
+- 使用するGPSの3D Fixが確認できていない
+- 屋外試験前に`COMPASS_ENABLE=1`へ戻していない
+- Compass calibrationまたはPreArm確認が未完了
 - RC failsafe未確認
 - DISARM時のESC挙動が不明
 - ステアリング方向が逆
