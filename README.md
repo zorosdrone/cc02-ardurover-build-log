@@ -54,15 +54,31 @@ GCSアプリ本体は別リポジトリで管理します。
 
 ## 主要ドキュメント
 
+番号順が、実機作業の流れです。
+
+### 全体把握
+
 - [概要](docs/00_概要.md)
 - [現在状況](docs/01_現在状況.md)
+
+### FC換装
+
 - [FC換装計画](docs/02_FC換装計画.md)
-- [配線](docs/03_配線.md)
-- [ArduRoverパラメータ](docs/04_ArduRoverパラメータ.md)
-- [チューニングログ](docs/05_チューニングログ.md)
-- [走行試験](docs/06_走行試験.md)
-- [トラブルシュート](docs/07_トラブルシュート.md)
-- [部品リスト](docs/08_部品リスト.md)
-- [Pixhawk 6C mini換装メモ](docs/09_Pixhawk6Cmini換装メモ.md)
-- [ArduRoverインストール設定手順](docs/10_ArduRoverインストール設定手順.md)
-- [ArduRoverチューニング手順](docs/11_ArduRoverチューニング手順.md)
+- [Pixhawk 6C mini換装メモ](docs/03_Pixhawk6Cmini換装メモ.md)
+- [配線](docs/04_配線.md)
+- [ArduRoverインストール設定手順](docs/05_ArduRoverインストール設定手順.md)
+
+### 換装後確認
+
+- [ArduRoverパラメータ](docs/06_ArduRoverパラメータ.md)
+- [走行試験](docs/07_走行試験.md)
+
+### チューニング
+
+- [ArduRoverチューニング手順](docs/08_ArduRoverチューニング手順.md)
+- [チューニングログ](docs/09_チューニングログ.md)
+
+### 参照
+
+- [トラブルシュート](docs/10_トラブルシュート.md)
+- [部品リスト](docs/11_部品リスト.md)

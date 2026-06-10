@@ -45,7 +45,7 @@ params/tuned/20260610_before_tune.param
 
 このファイルは「チューニング前ベースライン」として上書きしない。チューニング後は `params/tuned/YYYYMMDD_after_内容.param` のように別名で保存する。
 
-注意: `docs/04_ArduRoverパラメータ.md` では PM02 電圧倍率を `BATT_VOLT_MULT=18.182` 採用として記録しているが、現在指定の `.param` では `18.62` になっている。この手順では `20260610_before_tune.param` を現在値として扱い、走行前に通常給電・スモークストッパーなし・テスター実測で再確認する。
+注意: `docs/06_ArduRoverパラメータ.md` では PM02 電圧倍率を `BATT_VOLT_MULT=18.182` 採用として記録しているが、現在指定の `.param` では `18.62` になっている。この手順では `20260610_before_tune.param` を現在値として扱い、走行前に通常給電・スモークストッパーなし・テスター実測で再確認する。
 
 ## 2026-06-10時点の作業順
 
@@ -157,7 +157,7 @@ Mission Planner:
 CONFIG / TUNING -> Full Parameter Tree -> Save to File
 ```
 
-`docs/05_チューニングログ.md` に次を記録する。特に `20260610_before_tune.param` からの差分を残す。
+`docs/09_チューニングログ.md` に次を記録する。特に `20260610_before_tune.param` からの差分を残す。
 
 - 日付
 - 場所
@@ -302,7 +302,7 @@ Rover 公式手順では、ステアリング制御へ進む前に速度 / ス�
 | 発進が急すぎる | `ATC_ACCEL_MAX`、`MOT_SLEWRATE` を見直す |
 | 減速が遅い | `ATC_DECEL_MAX` を設定して確認する |
 
-変更は 1 回に 1 パラメータだけ行い、変更前後を `docs/05_チューニングログ.md` に記録する。
+変更は 1 回に 1 パラメータだけ行い、変更前後を `docs/09_チューニングログ.md` に記録する。
 
 ## 6. Turn Rate Controller 調整
 
@@ -464,7 +464,7 @@ GCS 側 Auto-stop は ArduRover 本体のチューニングとは別だが、運
 - 障害物検出時に `STOP` が送信される。
 - `STOP` 後にプロポ / Mission Planner で安全に再操作できる。
 
-`RNGFND1_MAX_CM` は現在 `.param` で `700`、`docs/04_ArduRoverパラメータ.md` では `200` 候補として記録されている。Auto-stop の最大閾値が `100cm` なら `200cm` で足りるが、実測値、GCS表示、屋外反射条件を見て決める。値を変えた場合は、rover-gcs 側の表示距離と STOP 閾値も同時に確認する。
+`RNGFND1_MAX_CM` は現在 `.param` で `700`、`docs/06_ArduRoverパラメータ.md` では `200` 候補として記録されている。Auto-stop の最大閾値が `100cm` なら `200cm` で足りるが、実測値、GCS表示、屋外反射条件を見て決める。値を変えた場合は、rover-gcs 側の表示距離と STOP 閾値も同時に確認する。
 
 ## 9. Rover QuikTune の扱い
 
