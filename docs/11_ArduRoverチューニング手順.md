@@ -1,6 +1,6 @@
 # ArduRoverチューニング手順
 
-更新日: 2026-06-09
+更新日: 2026-06-10
 
 ## 位置づけ
 
@@ -27,20 +27,38 @@ Copter の手順から引き継ぐ考え方は、安全確認、段階試験、�
 | ステアリング | `SERVO1_FUNCTION=26`、`MAIN 1` |
 | スロットル | `SERVO3_FUNCTION=70`、`MAIN 3` |
 | RC入力 | ステアリング `RC1`、スロットル `RC2` |
-| モード | `MODE_CH=5`、現在の `.param` では Manual / Hold 系が中心。Speed / Turn Rate 調整前に Acro を安全に割り当てる |
-| GPS / Compass | 暫定 M10 GPS で屋外 `3D Fix` 確認済み。Compass は認識済みだが搭載位置決定とキャリブレーション待ち |
+| モード | `MODE_CH=5`。`MODE1/2/5/6=Hold`、`MODE3/4=Manual`。Acro は未割当 |
+| GPS / Compass | `GPS1_TYPE=1`。Compass はキャリブレーション値が入っている。`COMPASS_ENABLE=0` は屋内 Manual テスト用の一時設定 |
 | LiDAR | TF-Luna、`TELEM2`、`RNGFND1_TYPE=20` |
 | Raspberry Pi / MAVLink | `TELEM1`、`SERIAL1_PROTOCOL=2`、`SERIAL1_BAUD=921` |
 | Manual 走行 | 2026-06-09、室内 Manual 低速走行確認済み |
-| 注意 | 室内 Manual 確認時は `COMPASS_ENABLE=0`。屋外 / Auto / Guided / RTL 前に `COMPASS_ENABLE=1` へ戻す |
+| Safety | `ARMING_CHECK=1`、`MOT_SAFE_DISARM=1` |
+| Battery | `BATT_MONITOR=4`、`BATT_CAPACITY=2200`、`BATT_VOLT_MULT=18.62`。ただし `BATT_LOW_VOLT=0`、`BATT_CRT_VOLT=0`、`BATT_FS_LOW_ACT=0`、`BATT_FS_CRT_ACT=0` |
+| 速度系 | `CRUISE_SPEED=2`、`CRUISE_THROTTLE=50`、`WP_SPEED=2` |
+| 注意 | 屋内では `COMPASS_ENABLE=0` のまま Manual / Hold / 出力確認までに留める。屋外で Auto / Guided / RTL / SmartRTL を行う前に `COMPASS_ENABLE=1` へ戻し、PreArm / EKF / Compass を確認する |
 
 開始時の基準パラメータ:
 
 ```text
-params/after_fc_replace/20260609_pixhawk6c_indoor_manual_ch2_ch5_ok.param
+params/tuned/20260610_before_tune.param
 ```
 
-注意: `docs/04_ArduRoverパラメータ.md` では PM02 電圧倍率を `BATT_VOLT_MULT=18.182` 採用として記録しているが、上記 `.param` では `18.62` になっている。チューニング走行前に、通常給電・スモークストッパーなし・テスター実測で再確認し、正しい値を記録する。
+このファイルは「チューニング前ベースライン」として上書きしない。チューニング後は `params/tuned/YYYYMMDD_after_内容.param` のように別名で保存する。
+
+注意: `docs/04_ArduRoverパラメータ.md` では PM02 電圧倍率を `BATT_VOLT_MULT=18.182` 採用として記録しているが、現在指定の `.param` では `18.62` になっている。この手順では `20260610_before_tune.param` を現在値として扱い、走行前に通常給電・スモークストッパーなし・テスター実測で再確認する。
+
+## 2026-06-10時点の作業順
+
+現在値に合わせると、最初にやることは PID 調整ではなく、安全側の入口確認である。
+
+1. `params/tuned/20260610_before_tune.param` をベースラインとして保管する。
+2. タイヤを浮かせた状態で Manual / Hold / Disarm / RC failsafe を確認する。
+3. Battery 表示を実測と比較し、低電圧しきい値を運用前に決める。
+4. 屋内テスト用に `COMPASS_ENABLE=0` にしている場合は、屋外で `COMPASS_ENABLE=1` に戻し、PreArm / EKF / GPS / Compass を確認する。
+5. Acro を一時的に割り当て、Manual と Hold の退避先を残す。
+6. Manual 低速走行でステアリング中立、スロットル中立、停止手段を確認する。
+7. Acro で Speed / Turn Rate のログを取り、必要な分だけ調整する。
+8. Auto / Guided / RTL は、Compass と Acro チューニングが通ってから低速で実施する。
 
 ## 全体フロー
 
@@ -82,18 +100,19 @@ params/after_fc_replace/20260609_pixhawk6c_indoor_manual_ch2_ch5_ok.param
 - [ ] `ARMING_CHECK=1` で、屋外試験前の PreArm エラーを解消済み。
 - [ ] 屋外 / 自律系試験前に `COMPASS_ENABLE=1` へ戻し、Compass Calibration を実施済み。
 - [ ] PM02 の電圧表示をテスター実測と比較済み。
+- [ ] `BATT_LOW_VOLT` / `BATT_CRT_VOLT` / `BATT_FS_*` は、最低限「警告を見て中止できる」運用値にしている。
 - [ ] RCフェイルセーフの検出と復帰を、タイヤを浮かせた地上状態で確認済み。
 - [ ] Speed / Turn Rate 調整に使う Acro モードを、実際に操作できるモード位置へ割り当て済み。
 
 ### 0.2 モード割当の注意
 
-Rover 公式の Speed / Throttle controller と Turn Rate controller の調整は Acro モードで行う。現在の `20260609_pixhawk6c_indoor_manual_ch2_ch5_ok.param` は `MODE_CH=5` で、`MODE1=4`、`MODE2=4`、`MODE3=0`、`MODE4=0`、`MODE5=4`、`MODE6=4` となっており、Acro が割り当てられていない。
+Rover 公式の Speed / Throttle controller と Turn Rate controller の調整は Acro モードで行う。現在の `20260610_before_tune.param` は `MODE_CH=5` で、`MODE1=4`、`MODE2=4`、`MODE3=0`、`MODE4=0`、`MODE5=4`、`MODE6=4` となっており、Acro が割り当てられていない。
 
 調整前に次を行う。
 
 1. Mission Planner `INITIAL SETUP -> Mandatory Hardware -> Flight Modes` で、実際に切り替わるモード位置を確認する。
 2. Manual と Hold の退避先を必ず残す。
-3. 余っている位置に Acro を割り当てる。
+3. 余っている位置に Acro を割り当てる。現在は Hold が複数あるため、実機スイッチで「緊急退避として使わない重複 Hold 位置」を Acro にする。
 4. タイヤを浮かせた状態で、Manual / Hold / Acro の切替表示を確認する。
 5. 変更前後の `MODE1` から `MODE6` と `MODE_CH` を記録する。
 6. 調整後に運用モード割当を戻す場合は、戻した後の `.param` も保存する。
@@ -107,19 +126,29 @@ Rover 公式の Speed / Throttle controller と Turn Rate controller の調整�
 | PreArm エラーが残る | 原因を解消するまで走らせない |
 | Mission Planner HUD に原因不明の `FAILSAFE` 表示が出る | Messages とログで原因を確認する |
 | Compass / EKF / GPS エラーが残る | Manual 低速だけに戻す |
+| 屋内テスト用の `COMPASS_ENABLE=0` のまま | Auto / Guided / RTL は行わない。屋外で `1` に戻してから実施する |
 | ステアリング方向が逆、または中立がずれる | `SERVO1_*` と機械リンクを修正する |
 | スロットル中立で前進 / 後退する | ESC 中立、`SERVO3_TRIM`、RC キャリブレーションを修正する |
 | 通信断時の停止手順が曖昧 | 走行しない |
 | バッテリー表示が実測と大きく違う | 電圧倍率を再確認する |
+| Battery failsafe が未設定のまま長時間走行する | 低速・短時間の Manual 確認だけにする |
 
 ## 1. ベースライン保存
 
-チューニング前に、必ずパラメータを保存する。
+今回のチューニング前ベースラインは、すでに次のファイルとして保存されている。
 
 保存先:
 
 ```text
-params/after_fc_replace/YYYYMMDD_pixhawk6c_before_rover_tune.param
+params/tuned/20260610_before_tune.param
+```
+
+このファイルは上書きしない。作業中にパラメータを変更したら、段階ごとに別名で保存する。
+
+```text
+params/tuned/20260610_after_manual_hold_fs_check.param
+params/tuned/20260610_after_acro_speed_check.param
+params/tuned/20260610_after_turn_rate_check.param
 ```
 
 Mission Planner:
@@ -128,7 +157,7 @@ Mission Planner:
 CONFIG / TUNING -> Full Parameter Tree -> Save to File
 ```
 
-`docs/05_チューニングログ.md` に次を記録する。
+`docs/05_チューニングログ.md` に次を記録する。特に `20260610_before_tune.param` からの差分を残す。
 
 - 日付
 - 場所
@@ -202,6 +231,8 @@ Manual で、低速かつ最大舵角にして円を描く。左右それぞれ�
 
 Rover の速度制御は、`CRUISE_SPEED` と `CRUISE_THROTTLE` の基準が合っていることが重要である。まず低速で安定して走れる値を作る。
 
+現在の `20260610_before_tune.param` は `CRUISE_SPEED=2`、`CRUISE_THROTTLE=50`、`WP_SPEED=2` である。これは初回屋外チューニングの入口としては速い可能性があるため、最初の Manual / Acro / Auto 確認では低速運用を優先する。速度を下げて試す場合は、変更前後の値を必ず保存する。
+
 ### 4.1 前提
 
 - Manual 低速走行が安定している。
@@ -232,11 +263,13 @@ AUX を使わない場合は、Manual 直線走行で次を記録し、保守的
 | `CRUISE_SPEED` | |
 | `CRUISE_THROTTLE` | |
 
-最初は安全側として、`WP_SPEED` を `CRUISE_SPEED` 以下または同程度にする。
+最初は安全側として、`WP_SPEED` を `CRUISE_SPEED` 以下または同程度にする。初回 Auto / Guided 確認では、2 m/s をそのまま使う前に、より低い速度で操作者が確実に止められることを確認する。
 
 ## 5. Speed / Throttle Controller 調整
 
 Rover 公式手順では、ステアリング制御へ進む前に速度 / スロットル制御を調整する。
+
+現在の速度制御パラメータは、`ATC_SPEED_P=0.2`、`ATC_SPEED_I=0.2`、`ATC_SPEED_D=0`、`ATC_SPEED_FF=0`、`ATC_ACCEL_MAX=1`、`ATC_DECEL_MAX=0` である。まずログで追従を見て、必要がある場合だけ小さく変更する。
 
 対象パラメータ:
 
@@ -274,6 +307,8 @@ Rover 公式手順では、ステアリング制御へ進む前に速度 / ス�
 ## 6. Turn Rate Controller 調整
 
 Rover の操舵で最も重要なのは Turn Rate controller である。速度制御がある程度落ち着いてから行う。
+
+現在の旋回制御パラメータは、`ACRO_TURN_RATE=180`、`ATC_STR_RAT_FF=0.2`、`ATC_STR_RAT_P=0.2`、`ATC_STR_RAT_I=0.2`、`ATC_STR_RAT_D=0`、`ATC_STR_RAT_MAX=120`、`ATC_TURN_MAX_G=0.6` である。最初から値を変えず、まず Acro で実測旋回レートと追従ログを取る。
 
 対象パラメータ:
 
@@ -319,6 +354,8 @@ Rover の操舵で最も重要なのは Turn Rate controller である。速度�
 
 Auto / Guided / RTL / SmartRTL は、速度制御と旋回レート制御が済んでから確認する。
 
+屋内テスト用に `COMPASS_ENABLE=0` にしている間は、この章へ進まない。屋外で `COMPASS_ENABLE=1` に戻し、Compass / EKF / GPS の PreArm クリア、Acro での Speed / Turn Rate 確認が終わってから実施する。
+
 対象パラメータ:
 
 | パラメータ | 役割 | 初期方針 |
@@ -351,6 +388,7 @@ Auto / Guided / RTL / SmartRTL は、速度制御と旋回レート制御が済�
 - [ ] HDOP が悪すぎない
 - [ ] EKF / Compass / GPS の PreArm エラーなし
 - [ ] `FS_THR_ENABLE` 確認済み
+- [ ] Battery 電圧表示と低電圧時の運用判断を確認済み
 - [ ] GCS通信断時の方針を決めている
 - [ ] `WP_SPEED` が低速
 - [ ] `WP_RADIUS` が狭すぎない
@@ -368,6 +406,8 @@ Auto / Guided / RTL / SmartRTL は、速度制御と旋回レート制御が済�
 | オーバーシュートが大きい | `WP_SPEED`、`ATC_ACCEL_MAX`、`ATC_DECEL_MAX`、`PSC_VEL_P/D` を見直す |
 
 ## 8. Guided / Auto / RTL / Auto-stop 受け入れ確認
+
+屋内テスト用に `COMPASS_ENABLE=0` にしている間は、この章の試験は実施しない。屋外で実施するときに `COMPASS_ENABLE=1` に戻し、Compass Calibration、PreArm、EKF、GPS を確認する。
 
 ### 8.1 Guided
 
@@ -424,9 +464,9 @@ GCS 側 Auto-stop は ArduRover 本体のチューニングとは別だが、運
 - 障害物検出時に `STOP` が送信される。
 - `STOP` 後にプロポ / Mission Planner で安全に再操作できる。
 
-`RNGFND1_MAX_CM` は現在 `.param` で `700`、`docs/04_ArduRoverパラメータ.md` では `200` 候補として記録されている。Auto-stop の最大閾値が `100cm` なら `200cm` で足りるが、実測値、GCS表示、屋外反射条件を見て決める。
+`RNGFND1_MAX_CM` は現在 `.param` で `700`、`docs/04_ArduRoverパラメータ.md` では `200` 候補として記録されている。Auto-stop の最大閾値が `100cm` なら `200cm` で足りるが、実測値、GCS表示、屋外反射条件を見て決める。値を変えた場合は、rover-gcs 側の表示距離と STOP 閾値も同時に確認する。
 
-## 9. Rover QuickTune の扱い
+## 9. Rover QuikTune の扱い
 
 Rover には Lua による `rover-quicktune.lua` がある。手動チューニングの代替または補助として使えるが、この実機では次を満たすまで実施しない。
 
@@ -437,6 +477,8 @@ Rover には Lua による `rover-quicktune.lua` がある。手動チューニ�
 - QuikTune の開始 / 中断 / 保存の AUX 操作を地上で確認済みであること。
 
 使う場合は、公式 Rover QuikTune 手順を確認し、設定ファイル名、AUX 割当、実行結果、保存前後のパラメータ差分を必ず記録する。
+
+現時点では、Acro 未割当かつ自律系未確認のため、QuikTune は後回しにする。Compass は屋内テスト時のみ無効化し、屋外確認時に有効化する前提とする。
 
 ## 10. ログ解析と記録
 
@@ -493,6 +535,7 @@ logs/test_runs/YYYYMMDD_rover_tune_NN.md
 | Safety | `ARMING_CHECK=1` で運用。PreArm エラーなし |
 | Compass / GPS | `COMPASS_ENABLE=1`、Compass Calibration 済み、屋外 `3D Fix`、EKF 警告なし |
 | RC FS | 地上試験で検出と復帰を確認済み |
+| Battery | 電圧表示が実測と合い、低電圧時の中止判断または failsafe 方針が記録済み |
 | Speed | `CRUISE_SPEED` / `CRUISE_THROTTLE` が実走行と一致 |
 | Throttle | `piddesired` と `pidachieved` が極端に乖離しない |
 | Turn Rate | 中速 Acro 旋回で目標と実旋回が追従 |
@@ -523,3 +566,4 @@ params/tuned/YYYYMMDD_pixhawk6c_rover_tuned_01.param
 | 日付 | 内容 |
 | --- | --- |
 | 2026-06-09 | 初版作成。ArduCopter チューニング手順書の安全確認、段階試験、記録方針を引き継ぎ、ArduRover の Speed / Throttle、Turn Rate、Navigation 手順へ置き換え |
+| 2026-06-10 | `params/tuned/20260610_before_tune.param` に合わせて更新。`COMPASS_ENABLE=0` は屋内テスト用の一時設定として整理し、Acro 未割当、Battery failsafe 未設定、`CRUISE_SPEED/WP_SPEED=2` を現在の入口条件として反映 |
