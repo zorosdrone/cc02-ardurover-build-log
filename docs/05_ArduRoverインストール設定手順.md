@@ -617,9 +617,116 @@ RNGFND1_SCALING = 3
 この段階では、GPS/Compass、受信機、PM02、LiDAR、Raspberry Pi接続は実運用に近い配線状態にしてよい。
 ただし、ESC / モーター電源はまだ入れず、サーボ・ESC出力確認の段階まで物理的に切っておく。
 
-搭載位置、FCの向き、GPS/Compassの位置、主要な電源線の取り回しを変更した場合は、Accel CalibrationとCompass Calibrationをやり直す。
+搭載位置、FCの向き、GPS/Compassの位置、主要な電源線の取り回しを変更した場合は、Accel CalibrationとCompass Calibrationをやり直す。GPS/Compassマストの長さを変えた場合も、磁気環境と機体上の相対位置が変わるためCompass Calibrationをやり直す。
 
 Mission PlannerのMandatory Hardwareで実施する。
+
+### マスト長変更後のCompass Calibration
+
+2026-06-10時点のベースライン `params/tuned/20260610_before_tune.param` では、室内Manualテスト用に `COMPASS_ENABLE=0` が入っている。このままではMission PlannerのCompass画面で `Start` を押しても校正が進まないことがある。Compass Calibrationを行う前に、いったんCompassとGPSを屋外用の状態へ戻す。
+
+#### 作業前に保存する
+
+Mission Plannerで現在値を保存する。
+
+```text
+params/tuned/20260610_before_compass_mast_cal.param
+```
+
+記録するもの:
+
+- 変更前マスト長:
+- 変更後マスト長:
+- M10 GPS / Compassの向き:
+- M10 GPS / Compassの固定方法:
+- 周囲の磁気影響になりそうなもの:
+- 使用した開始パラメータ:
+
+#### Full Parameter Listで確認する
+
+Mission Plannerの表示名により `GPS_TYPE` と出る場合があるが、この機体の `.param` では `GPS1_TYPE` を確認する。
+
+```text
+COMPASS_ENABLE
+COMPASS_USE
+COMPASS_USE2
+COMPASS_USE3
+COMPASS_PRIO1_ID
+COMPASS_EXTERNAL
+COMPASS_ORIENT
+GPS1_TYPE
+GPS2_TYPE
+```
+
+Compass Calibration前の復帰値:
+
+```text
+COMPASS_ENABLE = 1
+COMPASS_USE = 1
+GPS1_TYPE = 1
+```
+
+この機体は暫定M10 GPS / Compass 1台を使う前提なので、複数Compassを使わない場合は以下のままでよい。
+
+```text
+COMPASS_USE2 = 0
+COMPASS_USE3 = 0
+GPS2_TYPE = 0
+```
+
+`IST8310` がCompass画面に見えていることを確認する。`External` が未チェックに見える場合は、まず `COMPASS_ENABLE=1` に戻して再起動し、Compass Priority、External判定、Orientation表示を確認する。`COMPASS_EXTERNAL` や `COMPASS_ORIENT` は画面表示と実機の搭載向きが合っているかを確認し、むやみに変更しない。
+
+#### 校正手順
+
+1. `COMPASS_ENABLE=1`、`COMPASS_USE=1`、`GPS1_TYPE=1` を設定する。
+2. `Write Params` を押す。
+3. 送信機・受信機を有効化し、Mission PlannerのMessagesで `Radio failsafe on` が消えていることを確認する。
+4. Pixhawkを再起動する。
+   - Mission Plannerの `Preflight_Reboot_Shutdown` が効かない、または反応しにくい場合は、まずRadio failsafe状態を確認する。
+   - 送信機・受信機を有効化してRadio failsafeを解除すると、Mission Plannerから再起動できることを確認済み。
+5. Mission Plannerへ再接続する。
+6. `INITIAL SETUP -> Mandatory Hardware -> Compass` を開く。
+7. `IST8310` が表示されていることを確認する。
+8. `Use Compass 1` がチェックされていることを確認する。
+9. GPS/Compassを変更後のマスト長、実搭載位置、実搭載向きで固定する。
+10. 金属机、PC、工具、バッテリー、大電流線、ESC、モーターからできるだけ離す。
+11. `Start` を押す。
+12. 機体を前後左右上下に向けながらゆっくり回す。
+13. 成功したら、Radio failsafeが解除されていることを確認してから再起動する。
+14. 再接続後、PreArm、EKF、GPS、Compass関連メッセージを確認する。
+
+#### 校正後に保存する
+
+成功後、以下の名前で保存する。
+
+```text
+params/tuned/20260610_after_compass_mast_cal.param
+```
+
+記録する差分:
+
+- `COMPASS_ENABLE`
+- `COMPASS_USE*`
+- `COMPASS_PRIO*`
+- `COMPASS_EXTERNAL`
+- `COMPASS_ORIENT`
+- `COMPASS_OFS_*`
+- `COMPASS_DIA_*`
+- `COMPASS_ODI_*`
+- `COMPASS_SCALE`
+- `GPS1_TYPE`
+- PreArm結果
+- Mission Planner Compass画面の表示名、External、Orientation
+
+屋外用・自律走行用へ進む場合は、以下を維持する。
+
+```text
+COMPASS_ENABLE = 1
+GPS1_TYPE = 1
+ARMING_CHECK = 1
+```
+
+室内Manual走行テストだけへ戻す場合に限り、別ファイルへ保存したうえで `COMPASS_ENABLE=0` に戻してよい。ただし、その状態のまま屋外、Auto、Guided、RTL、SmartRTL、Compass Calibrationへ進まない。
 
 1. Accel Calibration
    - FCを実際の搭載向きで固定してから行う。
@@ -641,7 +748,7 @@ Mission PlannerのMandatory Hardwareで実施する。
 2. ファームウェア、ボード、ArduRover起動を確認。
 3. PM02のみ接続し、電圧表示を確認。
 4. RC受信機を接続し、Radio Calibration。
-5. GPS2へM8Nを接続し、GPS fixとCompass認識を確認。
+5. 暫定M10 GPSを`GPS1`へ接続し、GPS fixとCompass認識を確認。
 6. TELEM1へRaspberry Piを接続し、MAVLink通信を確認。
 7. TELEM2へLiDARを接続し、RangeFinder値を確認。
 8. ステアリングサーボを`MAIN 1`へ接続し、出力方向を確認。

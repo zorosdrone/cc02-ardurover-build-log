@@ -50,7 +50,7 @@ params/tuned/20260610_after_acro_speed_check.param
 | GPS | `GPS1_TYPE` / `GPS2_TYPE` | `1` / `0` | 暫定M10 GPS 1台。 |
 | Compass | `COMPASS_ENABLE` | `0` | 屋内Manualテスト用。屋外/自律系前に`1`へ戻す。 |
 | Compass | `COMPASS_ORIENT` | `6` | M10 GPS/Compass搭載向きと一致するか確認する。 |
-| Compass | `COMPASS_OFS_X/Y/Z` | `16.68246 / -197.9356 / 107.2597` | キャリブレーション値あり。搭載位置変更時は再実施。 |
+| Compass | `COMPASS_OFS_X/Y/Z` | `16.68246 / -197.9356 / 107.2597` | キャリブレーション値あり。マスト長変更後は再実施する。 |
 | Battery | `BATT_MONITOR` | `4` | PM02。 |
 | Battery | `BATT_VOLT_PIN` / `BATT_CURR_PIN` | `8` / `4` | Pixhawk 6C Mini + PM02。 |
 | Battery | `BATT_VOLT_MULT` | `18.62` | 過去文書の`18.182`と差分あり。走行前に実測で再確認する。 |
@@ -81,6 +81,7 @@ params/tuned/20260610_after_acro_speed_check.param
 | `BATT_VOLT_MULT` | `18.182`採用記録 | `18.62` | 屋外前に通常給電で実測し、どちらを採用するか記録する。 |
 | `RNGFND1_MAX_CM` | `200`候補 | `700` | GCS表示、Auto-stop閾値、屋外反射条件で決める。 |
 | Compass | `Compass not calibrated`記録あり | キャリブレーション値あり、`COMPASS_ENABLE=0` | 屋内用一時無効。屋外搭載状態で有効化しPreArm確認する。 |
+| Compass mast | マスト長変更前の校正値 | マスト長変更後の校正未実施 | `20260610_before_compass_mast_cal.param` と `20260610_after_compass_mast_cal.param` を保存する。 |
 | Battery failsafe | 旧FCは低電圧値あり | 現在は電圧しきい値0、自動動作なし | 初期試験は手動監視。運用前に設定する。 |
 | Acro | 手順上必要 | 未割当 | 重複Hold位置へ一時割当する。 |
 
@@ -88,6 +89,8 @@ params/tuned/20260610_after_acro_speed_check.param
 
 | タイミング | 保存先 | 必ず記録する差分 |
 | --- | --- | --- |
+| マスト長変更後Compass校正前 | `params/tuned/20260610_before_compass_mast_cal.param` | 変更前後マスト長、`COMPASS_ENABLE`、`COMPASS_USE*`、`GPS1_TYPE` |
+| マスト長変更後Compass校正後 | `params/tuned/20260610_after_compass_mast_cal.param` | `COMPASS_OFS_*`、`COMPASS_DIA_*`、`COMPASS_ODI_*`、`COMPASS_SCALE`、`COMPASS_ORIENT`、`COMPASS_EXTERNAL`、PreArm結果 |
 | 屋外前安全確認後 | `params/tuned/20260610_after_preoutdoor_check.param` | `COMPASS_ENABLE`、Battery値、Mode割当、RC7確認 |
 | Manual / Hold / RC FS確認後 | `params/tuned/20260610_after_manual_hold_fs_check.param` | `MODE*`、`FS_*`、`SERVO*`、`BATT_*` |
 | Acro割当後 | `params/tuned/20260610_after_acro_assignment.param` | 変更した`MODE*`のみ。Manual / Holdの退避先を明記 |

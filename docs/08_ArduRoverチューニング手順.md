@@ -28,7 +28,7 @@ Copter の手順から引き継ぐ考え方は、安全確認、段階試験、�
 | スロットル | `SERVO3_FUNCTION=70`、`MAIN 3` |
 | RC入力 | ステアリング `RC1`、スロットル `RC2` |
 | モード | `MODE_CH=5`。`MODE1/2/5/6=Hold`、`MODE3/4=Manual`。Acro は未割当 |
-| GPS / Compass | `GPS1_TYPE=1`。Compass はキャリブレーション値が入っている。`COMPASS_ENABLE=0` は屋内 Manual テスト用の一時設定 |
+| GPS / Compass | `GPS1_TYPE=1`。`COMPASS_ENABLE=0` は屋内 Manual テスト用の一時設定。GPS/Compassマスト長変更後のCompass Calibrationは屋外前に必須 |
 | LiDAR | TF-Luna、`TELEM2`、`RNGFND1_TYPE=20` |
 | Raspberry Pi / MAVLink | `TELEM1`、`SERIAL1_PROTOCOL=2`、`SERIAL1_BAUD=921` |
 | Manual 走行 | 2026-06-09、室内 Manual 低速走行確認済み |
@@ -54,11 +54,12 @@ params/tuned/20260610_before_tune.param
 1. `params/tuned/20260610_before_tune.param` をベースラインとして保管する。
 2. タイヤを浮かせた状態で Manual / Hold / Disarm / RC failsafe を確認する。
 3. Battery 表示を実測と比較し、低電圧しきい値を運用前に決める。
-4. 屋内テスト用に `COMPASS_ENABLE=0` にしている場合は、屋外で `COMPASS_ENABLE=1` に戻し、PreArm / EKF / GPS / Compass を確認する。
-5. Acro を一時的に割り当て、Manual と Hold の退避先を残す。
-6. Manual 低速走行でステアリング中立、スロットル中立、停止手段を確認する。
-7. Acro で Speed / Turn Rate のログを取り、必要な分だけ調整する。
-8. Auto / Guided / RTL は、Compass と Acro チューニングが通ってから低速で実施する。
+4. GPS/Compassマスト長変更後の実搭載状態で、Compass Calibration前後の`.param`を保存する。
+5. 屋内テスト用に `COMPASS_ENABLE=0` にしている場合は、屋外で `COMPASS_ENABLE=1` に戻し、Compass Calibration、PreArm / EKF / GPS / Compass を確認する。
+6. Acro を一時的に割り当て、Manual と Hold の退避先を残す。
+7. Manual 低速走行でステアリング中立、スロットル中立、停止手段を確認する。
+8. Acro で Speed / Turn Rate のログを取り、必要な分だけ調整する。
+9. Auto / Guided / RTL は、Compass と Acro チューニングが通ってから低速で実施する。
 
 ## 全体フロー
 
@@ -99,6 +100,7 @@ params/tuned/20260610_before_tune.param
 - [ ] `MOT_SAFE_DISARM=1` の DISARM 時挙動を確認済み。
 - [ ] `ARMING_CHECK=1` で、屋外試験前の PreArm エラーを解消済み。
 - [ ] 屋外 / 自律系試験前に `COMPASS_ENABLE=1` へ戻し、Compass Calibration を実施済み。
+- [ ] GPS/Compassマスト長変更後の長さ、固定状態、向き、Compass Calibration前後の`.param`を記録済み。
 - [ ] PM02 の電圧表示をテスター実測と比較済み。
 - [ ] `BATT_LOW_VOLT` / `BATT_CRT_VOLT` / `BATT_FS_*` は、最低限「警告を見て中止できる」運用値にしている。
 - [ ] RCフェイルセーフの検出と復帰を、タイヤを浮かせた地上状態で確認済み。
