@@ -4,7 +4,6 @@
 
 この文書は、タミヤ CC-02 + Pixhawk 6C Mini + ArduRover 構成のRoverについて、2026-06-11に実施したチューニング結果を反映した再現用手順書である。
 
-既存の `08_ArduRoverチューニング手順.md` は、Manual低速確認後から自律走行の受け入れ確認までの段階的な流れを定義していた。本更新版では、実際の6/11作業で確認できたこと、手順から分岐したこと、LiDAR / Object Avoidance周りの切り分けを追記する。
 
 目的は、別の作業者または将来の作業者が、同じ機体状態から同等のチューニング確認を再現できるようにすることである。
 
@@ -16,7 +15,6 @@
 | --- | --- |
 | ベース車両 | タミヤ CC-02 |
 | FC | Holybro Pixhawk 6C Mini |
-| Firmware target | `Pixhawk6C` |
 | Firmware | ArduRover 4.6.3系 |
 | ステアリング | `MAIN 1`, `SERVO1_FUNCTION=26` |
 | スロットル / ESC | `MAIN 3`, `SERVO3_FUNCTION=70` |
@@ -73,7 +71,6 @@ params/tuned/20260610_before_tune.param
 
 作業単位ごとに、パラメータ、BINログ、テスト記録を同じ番号で揃える。
 
-```text
 params/tuned/YYYYMMDD_NN_after_<内容>.param
 logs/bin/YYYYMMDD_NN_<内容>.bin
 logs/test_runs/YYYYMMDD_NN_<内容>.md
@@ -88,13 +85,23 @@ logs/test_runs/20260611_03_acro_low_speed_check.md
 ```
 
 `.BIN`、`.tlog`、動画ファイルはGitに直接入れず、外部保存先をMarkdownに記録する。
-
 ---
 
 ## 0. 作業前安全確認
 
 ### 0.1 必須条件
 
+- 走行場所は歩行者、車両、障害物から十分に離れている。
+- 送信機、Mission Planner、GCSのどれで止めるかを操作者が理解している。
+- 異常時は、プロポ中立、HoldまたはManual、DISARM、走行用LiPo切断の順で停止する。
+- 走行用LiPoを物理的にすぐ外せる。
+- `ARMING_CHECK=1` のまま進める。
+- `MOT_SAFE_DISARM=1` のDISARM時出力停止を確認済み。
+- 屋外 / 自律系では `COMPASS_ENABLE=1` に戻す。
+- GPSが `3D Fix` している。
+- PreArm / EKF / Compass / GPSエラーが残っていない。
+- Battery表示と実測電圧の差が大きくない。
+- Manual / Hold退避先を必ず残す。
 - 走行場所は歩行者、車両、障害物から十分に離れている。
 - 送信機、Mission Planner、GCSのどれで止めるかを操作者が理解している。
 - 異常時は、プロポ中立、HoldまたはManual、DISARM、走行用LiPo切断の順で停止する。
@@ -197,22 +204,17 @@ params/tuned/20260611_03_acro_low_speed_check.param
 | 実速度最大 | 1.57m/s |
 | 実速度平均 | 0.95m/s |
 | 目標速度平均 | 0.95m/s |
-| 速度誤差中央値 | 0.006m/s |
-| 目標速度と実速度の相関 | 0.947 |
-| 目標TurnRate範囲 | -120〜+120deg/s |
-| 実TurnRate範囲 | -108〜+110deg/s |
-| 目標TurnRateと実測の相関 | 0.954 |
-
-判断:
-
-- Acroで暴走なし。
-- Manual退避OK。
-- Hold停止OK。
-- Speed追従は良好。
-- Turn Rate追従も初回確認として良好。
-- `ATC_SPEED_*` / `ATC_STR_RAT_*` は変更しない。
-
----
+| Firmware target | `Pixhawk6C` |
+| Firmware | ArduRover 4.6.3系 |
+| ステアリング | `MAIN 1`, `SERVO1_FUNCTION=26` |
+| スロットル / ESC | `MAIN 3`, `SERVO3_FUNCTION=70` |
+| RC入力 | ステアリング `RC1`, スロットル `RC2` |
+| モード切替 | `MODE_CH=5` |
+| GPS / Compass | 暫定M10 GPSを `GPS1` 10ピンに接続 |
+| LiDAR | Benewake TF-Luna, `TELEM2`, `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` |
+| Raspberry Pi / MAVLink | `TELEM1`, `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` |
+| 電源モジュール | PM02 |
+| Battery | 3S 2200mAh LiPo |
 
 ## 3. Acro S字TurnRateチェック
 
