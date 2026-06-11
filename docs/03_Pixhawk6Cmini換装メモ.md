@@ -303,7 +303,7 @@ Pixhawk 6C MiniではSERIAL4が物理GPS2に対応するため、LiDARには使�
 ## 結論
 
 - 旧M8Nの`GPS2`流用は`No GPS`で保留する。
-- 現在は暫定M10 GPSを`GPS1` 10ピンへ接続し、屋外`3D Fix`まで確認済み。
+- 現在はM10 GPSを`GPS1` 10ピンへ接続し、屋外`3D Fix`まで確認済み。2026-06-12にGPSモジュールとして採用。
 - LiDAR / RangeFinderは`TELEM2`へ移行済み。現在値は`SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115`。
 - Raspberry Pi / MAVLinkは`TELEM1`へ移行済み。現在値は`SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921`。
 - Buzzerは使わない。

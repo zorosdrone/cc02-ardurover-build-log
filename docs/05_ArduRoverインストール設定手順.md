@@ -12,7 +12,7 @@ Pixhawk 6C MiniへArduRoverをインストールし、CC-02 Roverとしてベン
 - Firmware target: `Pixhawk6C`
 - Vehicle firmware: ArduRover
 - 電源モジュール: PM02
-- GPS / Compass: 旧M8Nの`GPS2`流用は保留。暫定的に別プロジェクトのM10 GPSを`GPS1` 10ピンへ接続する
+- GPS / Compass: 旧M8Nの`GPS2`流用は保留。購入済みM10 GPSをGPSモジュールとして採用し、`GPS1` 10ピンへ接続する
 - Raspberry Pi / MAVLink: `TELEM1`へ接続済み
 - LiDAR / RangeFinder: `TELEM2`へ接続済み
 - ステアリング: `MAIN 1`
@@ -89,14 +89,14 @@ CONFIG / TUNING -> Full Parameter Tree -> Save to File
 | --- | --- | --- | --- | --- |
 | Raspberry Pi / MAVLink | `TELEM1` | `SERIAL1` | `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` | 移行済み。動作確認OK。 |
 | LiDAR / RangeFinder | `TELEM2` | `SERIAL2` | `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` | 移行済み。Mission PlannerでSonar Range表示OK。 |
-| 暫定M10 GPS | `GPS1` | GPS1系 | `GPS1_TYPE=1` | 2026-06-09、10ピン接続で屋内`Not Fix`、屋外`3D Fix`確認済み。 |
+| M10 GPS | `GPS1` | GPS1系 | `GPS1_TYPE=1` | 2026-06-09、10ピン接続で屋内`Not Fix`、屋外`3D Fix`確認済み。2026-06-12、GPSモジュールとして採用。 |
 | 旧M8N GPS | `GPS2` | `SERIAL4` | `SERIAL4_PROTOCOL=5`, `SERIAL4_BAUD=230`候補 | LED点灯後も`No GPS`のため流用は保留。 |
 
 注意:
 
 - 6C Miniでは`SERIAL4`が物理`GPS2`。
 - 現行LiDARの`SERIAL4_PROTOCOL=9`をそのままコピーすると、GPS2と衝突する。
-- 暫定M10 GPSを`GPS1`へ接続する場合でも、`SERIAL4`はLiDAR用に戻さない。LiDARは`TELEM2`のままにする。
+- M10 GPSを`GPS1`へ接続する場合でも、`SERIAL4`はLiDAR用に戻さない。LiDARは`TELEM2`のままにする。
 - 1つのUARTにRaspberry PiとLiDARを同時接続しない。
 
 ### GPS2 6ピン
@@ -230,12 +230,12 @@ Mission Plannerで確認すること:
 
 2026-06-09:
 
-- 別プロジェクトのM10 GPSを`GPS1` 10ピンへ接続し、Mission Plannerで屋内`Not Fix`、屋外`3D Fix`を確認。
+- M10 GPSを`GPS1` 10ピンへ接続し、Mission Plannerで屋内`Not Fix`、屋外`3D Fix`を確認。
 - `Not Fix`はGPS未認識ではなく、GPS認識済みでFix待ちの状態として扱う。
 - Compass画面でIST8310系コンパスが見えていることを確認。
 - 当時は`Compass not calibrated`表示あり。2026-06-10現在はCompassオフセット値が入っているため、屋外前に`COMPASS_ENABLE=1`へ戻し、搭載位置固定後にPreArmと磁場差を再確認する。
 
-旧M8Nを再開する場合だけ、GPS2 6ピンへまとめる方針でCompass I2C線も同時に確認する。現在の屋外チューニング前確認は、暫定M10 GPS / Compassの`GPS1`接続を前提に進める。
+旧M8Nを再開する場合だけ、GPS2 6ピンへまとめる方針でCompass I2C線も同時に確認する。現在の屋外チューニング前確認は、採用M10 GPS / Compassの`GPS1`接続を前提に進める。
 
 ### OLED Module I2C実験
 
@@ -624,7 +624,7 @@ Mission PlannerのMandatory Hardwareで実施する。
 1. Accel Calibration
    - FCを実際の搭載向きで固定してから行う。
 2. Compass Calibration
-   - 暫定M10 GPS内蔵Compassを使う。
+   - M10 GPS内蔵Compassを使う。
    - Mission PlannerのCompass PriorityでIST8310系Compassが見えていることを確認済み。
    - 内蔵Compassが干渉する場合は、使用コンパスを外部M10側優先にする。
    - GPS/Compassも実際の搭載位置、またはそれに近い仮固定状態で行う。
