@@ -1,4 +1,4 @@
-# 2026-06-11 Roverチューニング記録
+﻿# 2026-06-11 Roverチューニング記録
 
 ## 概要
 
@@ -53,7 +53,7 @@ params/tuned/20260611_01_after_acro_assignment.param
 
 ```text
 params/tuned/20260611_03_acro_low_speed_check.param
-logs/test_runs/20260611_03_acro_low_speed_check.md.bin
+logs/accepted/20260611_03_acro_low_speed_check.md.bin
 ```
 
 Acroモードで低速直進・低速操作を行い、Speed controllerとTurn Rate controllerの入口確認を行った。
@@ -161,7 +161,7 @@ LiDAR / RangeFinder:
 保存ファイル:
 
 ```text
-logs/test_runs/20260611_04_acro_s_curve_turnrate_check.bin
+logs/accepted/20260611_04_acro_s_curve_turnrate_check.bin
 ```
 
 AcroモードでS字走行を行い、左右TurnRateの追従と左右差を確認した。Acroのメイン区間は約96.7秒で、暴走・制御破綻・異常なモード遷移は見られなかった。
@@ -243,7 +243,7 @@ LiDAR / RangeFinder:
 保存ファイル:
 
 ```text
-logs/test_runs/20260611_05_navigation_low_speed_straight_check.bin
+logs/accepted/20260611_05_navigation_low_speed_straight_check.bin
 ```
 
 Guided低速移動とAuto Missionを実施。Autoでは複数Waypoint到達とMission Completeを確認した。
@@ -393,7 +393,7 @@ Guided 1回目で一瞬以下あり。
 保存ファイル:
 
 ```text
-logs/test_runs/20260611_06_lidar_static_distance_check.bin
+logs/accepted/20260611_06_lidar_static_distance_check.bin
 ```
 
 室内または静置状態で、TF-Luna LiDARの距離値が実距離に追従するか確認した。
@@ -542,7 +542,7 @@ SERIAL2_BAUD     = 115
 推奨保存名:
 
 ```text
-logs/test_runs/20260612_01_lidar_simple_avoid_acro_stop_check.bin
+logs/accepted/20260612_01_lidar_simple_avoid_acro_stop_check.bin
 params/tuned/20260612_01_after_lidar_simple_avoid_acro_stop_check.param
 ```
 

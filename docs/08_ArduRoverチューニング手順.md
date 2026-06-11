@@ -1,4 +1,4 @@
-# ArduRoverチューニング手順 2026-06-11更新版
+﻿# ArduRoverチューニング手順 2026-06-11更新版
 
 ## 位置づけ
 
@@ -72,7 +72,7 @@ params/tuned/20260610_before_tune.param
 作業単位ごとに、パラメータ、BINログ、テスト記録を同じ番号で揃える。
 
 params/tuned/YYYYMMDD_NN_after_<内容>.param
-logs/bin/YYYYMMDD_NN_<内容>.bin
+logs/accepted/YYYYMMDD_NN_<内容>.bin
 logs/test_runs/YYYYMMDD_NN_<内容>.md
 ```
 
@@ -80,7 +80,7 @@ logs/test_runs/YYYYMMDD_NN_<内容>.md
 
 ```text
 params/tuned/20260611_03_acro_low_speed_check.param
-logs/bin/20260611_03_acro_low_speed_check.bin
+logs/accepted/20260611_03_acro_low_speed_check.md.bin
 logs/test_runs/20260611_03_acro_low_speed_check.md
 ```
 
@@ -181,7 +181,7 @@ Acroで低速直進、停止、軽い前後進を行い、Speed controllerとTur
 ### 2.2 推奨ログ名
 
 ```text
-logs/bin/20260611_03_acro_low_speed_check.bin
+logs/accepted/20260611_03_acro_low_speed_check.md.bin
 params/tuned/20260611_03_acro_low_speed_check.param
 ```
 
@@ -225,7 +225,7 @@ params/tuned/20260611_03_acro_low_speed_check.param
 ### 3.2 推奨ログ名
 
 ```text
-logs/bin/20260611_04_acro_s_curve_turnrate_check.bin
+logs/accepted/20260611_04_acro_s_curve_turnrate_check.bin
 ```
 
 ### 3.3 実施手順
@@ -345,7 +345,7 @@ WP4: 戻りまたは折り返し
 ### 5.4 6/11実績
 
 ```text
-logs/bin/20260611_05_navigation_low_speed_straight_check.bin
+logs/accepted/20260611_05_navigation_low_speed_straight_check.bin
 ```
 
 ログメッセージ:
@@ -420,7 +420,7 @@ TF-Lunaの距離値が、実距離に対して安定して変化するか確認�
 ### 6.2 推奨ログ名
 
 ```text
-logs/bin/20260611_06_lidar_static_distance_check.bin
+logs/accepted/20260611_06_lidar_static_distance_check.bin
 ```
 
 ### 6.3 Arm / Disarmとログ
@@ -620,14 +620,14 @@ Statusで prx / prox / proximity を検索
 ### 8.2 推奨ログ名
 
 ```text
-logs/bin/20260611_08_lidar_simple_avoid_acro_stop_check.bin
+logs/accepted/20260611_08_lidar_simple_avoid_acro_stop_check.bin
 params/tuned/20260611_08_after_lidar_simple_avoid_acro_stop_check.param
 ```
 
 日付をまたぐ場合:
 
 ```text
-logs/bin/20260612_01_lidar_simple_avoid_acro_stop_check.bin
+logs/accepted/20260612_01_lidar_simple_avoid_acro_stop_check.bin
 params/tuned/20260612_01_after_lidar_simple_avoid_acro_stop_check.param
 ```
 
@@ -812,7 +812,7 @@ ATC_STR_RAT_*
 推奨保存先:
 
 ```text
-logs/bin/20260612_02_lidar_proximity_static_check.bin
+logs/accepted/20260612_02_lidar_proximity_static_check.bin
 params/tuned/20260612_02_after_lidar_proximity_static_check.param
 logs/test_runs/20260612_02_lidar_proximity_static_check.md
 ```

@@ -1,4 +1,4 @@
-# LiDAR設定・検証記録
+﻿# LiDAR設定・検証記録
 
 ## 目的
 
@@ -338,7 +338,7 @@ AVOID_MARGIN = 2.0
 候補ログ名:
 
 ```text
-logs/bin/20260612_02_lidar_simple_avoid_acro_margin2_outdoor_stop_check.bin
+logs/accepted/20260612_02_lidar_simple_avoid_acro_margin2_outdoor_stop_check.bin
 ```
 
 候補パラメータ名:

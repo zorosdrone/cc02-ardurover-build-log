@@ -4,6 +4,10 @@
 *.ulg
 *.tlog
 
+# 採用ログだけは Git LFS で管理する。
+!logs/accepted/
+!logs/accepted/**
+
 # ローカル環境の不要ファイル
 .DS_Store
 Thumbs.db
