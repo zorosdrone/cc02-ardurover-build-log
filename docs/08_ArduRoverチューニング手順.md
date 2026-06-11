@@ -22,7 +22,7 @@
 | スロットル / ESC | `MAIN 3`, `SERVO3_FUNCTION=70` |
 | RC入力 | ステアリング `RC1`, スロットル `RC2` |
 | モード切替 | `MODE_CH=5` |
-| GPS / Compass | 暫定M10 GPSを `GPS1` 10ピンに接続 |
+| GPS / Compass | 採用M10 GPSを `GPS1` 10ピンに接続 |
 | LiDAR | Benewake TF-Luna, `TELEM2`, `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` |
 | Raspberry Pi / MAVLink | `TELEM1`, `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` |
 | 電源モジュール | PM02 |
@@ -62,7 +62,7 @@ params/tuned/20260610_before_tune.param
 | Compass PreArm警告 | Auto後に `PreArm: Check mag field (xy diff:117>100)` が出たため、次回ARM前に再確認 |
 | Battery failsafe | `BATT_LOW_VOLT` / `BATT_CRT_VOLT` / `BATT_FS_*` は未確定。長時間運用前に設定する |
 | LiDAR走行中安定性 | 静置では良好。走行ログでは `RFND.Dist=0` が多い区間があった |
-| Simple Object Avoidance | 未実走確認 |
+| Simple Object Avoidance | 2026-06-12 Acro実走で2m停止せず。未通過 |
 | BendyRuler | `OA_TYPE=1` で `RangeFinder1(cm)=0.00` になったため保留 |
 | RTL / SmartRTL | 未実施 |
 | GCS側Auto-stop | 未実施 |
@@ -507,6 +507,8 @@ SERIAL2_BAUD     = 115
 
 ### 7.4 Simple Object Avoidance初期設定
 
+公式手順では、1番目のRangeFinderをProximity sensorとして使う場合 `PRX1_TYPE=4` を使う。ただし、この機体では2026-06-12時点で `PRX1_TYPE=4` にするとMission Plannerの距離表示が消える事象が出ている。
+
 ```text
 OA_TYPE          = 0
 PRX1_TYPE        = 4
@@ -519,6 +521,18 @@ RNGFND1_MAX_CM   = 700
 `AVOID_MARGIN=0.5` はMission Planner上で範囲外警告が出たため採用しない。`AVOID_MARGIN=2.0` のまま確認する。
 
 `AVOID_BACKUP_SPD=0` は、障害物前で後退し続ける挙動を避け、まず停止確認に寄せるために設定する。
+
+2026-06-12切り分け:
+
+```text
+PRX1_TYPE = 0
+→ RangeFinder距離表示あり
+
+PRX1_TYPE = 4
+→ 距離表示なし
+```
+
+このため、`PRX1_TYPE=4` 設定後は `RangeFinder1(cm)` だけでなく、Proximity ViewerとDataFlashの `PRX` を必ず確認する。Proximity Viewer / `PRX` にも前方障害物が出ない場合は、`PRX1_TYPE=0` に戻してRangeFinder単体の状態へ復旧する。
 
 ### 7.5 `OA_TYPE=1` の切り分け結果
 
@@ -542,6 +556,8 @@ OA_TYPE = 0
 
 #### リアルタイム確認
 
+RangeFinder単体確認:
+
 ```text
 Flight Data
 ↓
@@ -557,6 +573,18 @@ sonarrange / rangefinder1 / RangeFinder1(cm)
 | 0.5m | 50cm前後 |
 | 1.0m | 100cm前後 |
 | 2.0m | 200cm前後 |
+
+Proximity化後の確認:
+
+```text
+Flight Data
+↓
+Ctrl-F
+↓
+Proximity
+```
+
+`PRX1_TYPE=4` にした後、`RangeFinder1(cm)` の表示が消えても、Proximity Viewerで前方障害物が見えていればProximity側へ変換されている可能性がある。Proximity Viewerにも出ない場合は走行テストしない。
 
 #### ログ確認
 
@@ -577,7 +605,7 @@ Statusで prx / prox / proximity を検索
 または DataFlash Logで PRX 系メッセージを確認
 ```
 
-ただし、`RangeFinder1(cm)=0.00` 固定のままなら、PRX以前にRangeFinder入力の復旧を優先する。
+ただし、`PRX1_TYPE=0` の状態でも `RangeFinder1(cm)=0.00` 固定なら、PRX以前にRangeFinder入力の復旧を優先する。
 
 ---
 
@@ -616,11 +644,14 @@ RNGFND1_MAX_CM   = 700
 
 ### 8.4 事前確認
 
-1. Mission Planner再接続後、5〜10秒待つ。
+1. `PRX1_TYPE=0` の状態でMission Planner再接続後、5〜10秒待つ。
 2. LiDAR正面0.5mに板を置き、`RangeFinder1(cm)` が50前後になるか確認する。
 3. 1mで100前後、2mで200前後になるか確認する。
-4. `RangeFinder1(cm)=0.00` 固定なら走行テストしない。
-5. Manual / Hold退避先を確認する。
+4. `PRX1_TYPE=4` に変更してFCを再起動する。
+5. `RangeFinder1(cm)` 表示が消えても、Proximity Viewerで前方障害物が見えるか確認する。
+6. DataFlashログに `PRX` メッセージが出るか確認する。
+7. Proximity Viewer / `PRX` に出ない場合は走行テストしない。
+8. Manual / Hold退避先を確認する。
 
 ### 8.5 実走手順
 
@@ -651,6 +682,23 @@ Guidedで障害物回避確認
 RTL
 SmartRTL
 高速走行
+```
+
+### 8.8 2026-06-12 Acro実走結果
+
+`OA_TYPE=0`、`PRX1_TYPE=4`、`AVOID_ENABLE=7`、`AVOID_MARGIN=2.0`、`AVOID_BACKUP_SPD=0` の方針でAcro低速確認を行ったが、2m付近で停止しなかった。
+
+判断:
+
+- Simple Object AvoidanceのAcro実走確認は未通過。
+- 実走時点では `PRX1_TYPE=0` だったため、LiDARがProximity入力として有効化されていなかった可能性が高い。
+- その後 `PRX1_TYPE=4` にしたところ距離表示が消えたため、Proximity Viewer / `PRX` 側に値が出るかを確認する必要がある。
+- 走行再試験の前に、静置またはタイヤ浮かせ状態でProximity ViewerとDataFlashの `PRX` ログを確認する。
+
+次の確認名:
+
+```text
+20260612_02_lidar_proximity_static_check
 ```
 
 ---
@@ -703,7 +751,7 @@ OA_MARGIN_MAX = 2
 | Navigation | 低速AutoでWaypoint到達とMission Completeを確認 |
 | RTL | 短距離でHome方向へ戻ることを確認。未実施なら未完扱い |
 | LiDAR静置 | 0.3m / 0.5m / 1m / 2mで距離が追従 |
-| Simple Object Avoidance | Acro低速で障害物前の停止または前進抑制を確認 |
+| Simple Object Avoidance | 2026-06-12 Acro低速では2m停止せず。Proximity / PRX確認へ戻る |
 | GCS Auto-stop | rover-gcs側STOPを使う場合のみ、別途確認 |
 | BendyRuler | 必要な場合のみ、`OA_TYPE=1`でAuto / Guided回避を確認 |
 | パラメータ | 凍結版 `.param` を `params/tuned/` に保存 |
@@ -737,29 +785,34 @@ ATC_STR_RAT_*
 
 ## 12. 次回の最優先作業
 
-次回は以下の順で進める。
+2026-06-12のAcro実走では2m付近で停止しなかった。実走時点では `PRX1_TYPE=0` だったため、次回は走行再試験ではなく、静置またはタイヤ浮かせ状態で `RangeFinder -> Proximity -> Avoidance` の接続確認を行う。
 
 ```text
 1. Compass PreArm警告が再発しないか確認
-2. RangeFinder1(cm) が0.5m / 1m / 2mで正常に出るか確認
-3. OA_TYPE=0 のまま Simple Object Avoidance設定を確認
-4. Acro低速で障害物前停止または前進抑制を確認
-5. 結果をログ保存
-6. 必要ならGCS Auto-stopまたはBendyRulerへ進む
+2. PRX1_TYPE=0でRangeFinder1(cm) が0.5m / 1m / 2mで正常に出るか確認
+3. PRX1_TYPE=4に変更してFC再起動
+4. RangeFinder1(cm) 表示が消えるか、Proximity Viewer側へ移るか確認
+5. Mission PlannerのProximity Viewerで前方障害物が出るか確認
+6. DataFlashログにPRXメッセージが出ているか確認
+7. PRX1_TYPE=4 / AVOID_ENABLE=7 / AVOID_MARGIN=2.0 / AVOID_BACKUP_SPD=0 が再起動後も残っているか確認
+8. RNGFND1_ORIENT=0 とLiDARの前向き実装が合っているか確認
+9. RCx_OPTION=40 が設定されている場合、Proximity AvoidanceがON側になっているか確認
+10. Proximity Viewer / PRXに出ない場合はPRX1_TYPE=0へ戻す
+11. Proximity Viewer / PRXに出た場合だけAcro低速の障害物停止を再試験する
 ```
 
 推奨ログ名:
 
 ```text
-20260612_01_lidar_simple_avoid_acro_stop_check
+20260612_02_lidar_proximity_static_check
 ```
 
 推奨保存先:
 
 ```text
-logs/bin/20260612_01_lidar_simple_avoid_acro_stop_check.bin
-params/tuned/20260612_01_after_lidar_simple_avoid_acro_stop_check.param
-logs/test_runs/20260612_01_lidar_simple_avoid_acro_stop_check.md
+logs/bin/20260612_02_lidar_proximity_static_check.bin
+params/tuned/20260612_02_after_lidar_proximity_static_check.param
+logs/test_runs/20260612_02_lidar_proximity_static_check.md
 ```
 
 ---
@@ -792,4 +845,6 @@ RoverにはLuaによる `rover-quicktune.lua` があり、手動チューニン�
 
 | 日付 | 内容 |
 | --- | --- |
+| 2026-06-12 | `PRX1_TYPE=0` だったこと、`PRX1_TYPE=4` にすると距離表示が消えることを反映。RangeFinder単体確認とProximity Viewer / PRX確認を分ける方針に更新 |
+| 2026-06-12 | Acro低速でSimple Object Avoidanceが2m停止しなかった結果を反映。次回作業を実走再試験ではなく、Proximity Viewer / PRXログ確認へ変更 |
 | 2026-06-11 | 6/11実走結果を反映。Acro、S字TurnRate、Guided、Auto Mission、LiDAR静置、Object Avoidance切り分けを追記。`OA_TYPE=1` で `RangeFinder1(cm)=0.00` になる事象を反映し、まず `OA_TYPE=0` のSimple Object Avoidanceから確認する方針に更新 |
