@@ -1,549 +1,713 @@
-# ArduRoverチューニング手順
-
-更新日: 2026-06-10
+# ArduRoverチューニング手順 2026-06-11更新版
 
 ## 位置づけ
 
-この手順書は、タミヤ CC-02 + Pixhawk 6C Mini 構成の ArduRover を、Manual 低速走行確認後から自律走行の受け入れ確認まで段階的にチューニングするための作業手順である。
+この文書は、タミヤ CC-02 + Pixhawk 6C Mini + ArduRover 構成のRoverについて、2026-06-11に実施したチューニング結果を反映した再現用手順書である。
 
-参考にした ArduCopter 側の手順書:
 
-- `C:\Users\ta1na\source\commondoc\10_PRJ\30_PRJ_DJ_DIYDroneBuild\40_設定チューニング\02_テストフライトとパラメータチューニング_目次.md`
-- `C:\Users\ta1na\source\commondoc\10_PRJ\30_PRJ_DJ_DIYDroneBuild\40_設定チューニング\03-1_テストフライトとパラメータチューニング_前半.md`
-- `C:\Users\ta1na\source\commondoc\10_PRJ\30_PRJ_DJ_DIYDroneBuild\40_設定チューニング\03-2_テストフライトとパラメータチューニング_後半_5.5以降.md`
-- `C:\Users\ta1na\source\commondoc\10_PRJ\30_PRJ_DJ_DIYDroneBuild\40_設定チューニング\06_飛行日誌_20260528-20260529_チューニング結果.md`
+目的は、別の作業者または将来の作業者が、同じ機体状態から同等のチューニング確認を再現できるようにすることである。
 
-Copter の手順から引き継ぐ考え方は、安全確認、段階試験、中止基準、パラメータ保存、ログ保存である。Rover ではホバリング、AltHold、Loiter、Copter AutoTune は使わず、Manual 確認、速度制御、旋回レート制御、ナビゲーション制御の順に進める。
+---
 
-## 現在の前提
+## 対象構成
 
-この手順は、次の現状から開始する。
-
-| 項目 | 状態 |
+| 項目 | 内容 |
 | --- | --- |
-| 車体 | タミヤ CC-02 |
+| ベース車両 | タミヤ CC-02 |
 | FC | Holybro Pixhawk 6C Mini |
-| Firmware | ArduRover、Pixhawk6C target |
-| ステアリング | `SERVO1_FUNCTION=26`、`MAIN 1` |
-| スロットル | `SERVO3_FUNCTION=70`、`MAIN 3` |
-| RC入力 | ステアリング `RC1`、スロットル `RC2` |
-| モード | `MODE_CH=5`。`MODE1/2/5/6=Hold`、`MODE3/4=Manual`。Acro は未割当 |
-| GPS / Compass | `GPS1_TYPE=1`。`COMPASS_ENABLE=0` は屋内 Manual テスト用の一時設定。GPS/Compassマスト長変更後のCompass Calibrationは屋外前に必須 |
-| LiDAR | TF-Luna、`TELEM2`、`RNGFND1_TYPE=20` |
-| Raspberry Pi / MAVLink | `TELEM1`、`SERIAL1_PROTOCOL=2`、`SERIAL1_BAUD=921` |
-| Manual 走行 | 2026-06-09、室内 Manual 低速走行確認済み |
-| Safety | `ARMING_CHECK=1`、`MOT_SAFE_DISARM=1` |
-| Battery | `BATT_MONITOR=4`、`BATT_CAPACITY=2200`、`BATT_VOLT_MULT=18.62`。ただし `BATT_LOW_VOLT=0`、`BATT_CRT_VOLT=0`、`BATT_FS_LOW_ACT=0`、`BATT_FS_CRT_ACT=0` |
-| 速度系 | `CRUISE_SPEED=2`、`CRUISE_THROTTLE=50`、`WP_SPEED=2` |
-| 注意 | 屋内では `COMPASS_ENABLE=0` のまま Manual / Hold / 出力確認までに留める。屋外で Auto / Guided / RTL / SmartRTL を行う前に `COMPASS_ENABLE=1` へ戻し、PreArm / EKF / Compass を確認する |
+| Firmware | ArduRover 4.6.3系 |
+| ステアリング | `MAIN 1`, `SERVO1_FUNCTION=26` |
+| スロットル / ESC | `MAIN 3`, `SERVO3_FUNCTION=70` |
+| RC入力 | ステアリング `RC1`, スロットル `RC2` |
+| モード切替 | `MODE_CH=5` |
+| GPS / Compass | 暫定M10 GPSを `GPS1` 10ピンに接続 |
+| LiDAR | Benewake TF-Luna, `TELEM2`, `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` |
+| Raspberry Pi / MAVLink | `TELEM1`, `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` |
+| 電源モジュール | PM02 |
+| Battery | 3S 2200mAh LiPo |
 
-開始時の基準パラメータ:
+開始時の基準パラメータは以下とする。
 
 ```text
 params/tuned/20260610_before_tune.param
 ```
 
-このファイルは「チューニング前ベースライン」として上書きしない。チューニング後は `params/tuned/YYYYMMDD_after_内容.param` のように別名で保存する。
+このファイルは上書きしない。作業ごとに別名で保存する。
 
-注意: `docs/06_ArduRoverパラメータ.md` では PM02 電圧倍率を `BATT_VOLT_MULT=18.182` 採用として記録しているが、現在指定の `.param` では `18.62` になっている。この手順では `20260610_before_tune.param` を現在値として扱い、走行前に通常給電・スモークストッパーなし・テスター実測で再確認する。
+---
 
-## 2026-06-10時点の作業順
+## 6/11実施後の到達状態
 
-現在値に合わせると、最初にやることは PID 調整ではなく、安全側の入口確認である。
+2026-06-11の作業で、以下は通過扱いとした。
 
-1. `params/tuned/20260610_before_tune.param` をベースラインとして保管する。
-2. タイヤを浮かせた状態で Manual / Hold / Disarm / RC failsafe を確認する。
-3. Battery 表示を実測と比較し、低電圧しきい値を運用前に決める。
-4. GPS/Compassマスト長変更後の実搭載状態で、Compass Calibration前後の`.param`を保存する。
-5. 屋内テスト用に `COMPASS_ENABLE=0` にしている場合は、屋外で `COMPASS_ENABLE=1` に戻し、Compass Calibration、PreArm / EKF / GPS / Compass を確認する。
-6. Acro を一時的に割り当て、Manual と Hold の退避先を残す。
-7. Manual 低速走行でステアリング中立、スロットル中立、停止手段を確認する。
-8. Acro で Speed / Turn Rate のログを取り、必要な分だけ調整する。
-9. Auto / Guided / RTL は、Compass と Acro チューニングが通ってから低速で実施する。
+| 項目 | 判断 |
+| --- | --- |
+| Acro割当 | 通過 |
+| Manual / Hold退避 | 通過 |
+| Acro低速走行 | 通過 |
+| Acro S字TurnRate確認 | 通過 |
+| Speed controller | 現時点で変更不要 |
+| Turn Rate controller | 現時点で変更不要 |
+| Guided低速移動 | 通過 |
+| Auto Mission / Waypoint確認 | 通過 |
+| Auto Mission Complete | 達成 |
+| LiDAR静置距離確認 | 通過 |
 
-## 全体フロー
+未完または継続確認としたものは以下。
 
-```text
-0. 作業前安全確認
-  ↓
-1. ベースライン保存
-  ↓
-2. 屋外 Manual 低速走行と停止手段確認
-  ↓
-3. ステアリング中立・最大舵角・旋回半径確認
-  ↓
-4. Cruise Speed / Cruise Throttle 学習
-  ↓
-5. Speed / Throttle controller 調整
-  ↓
-6. Turn Rate controller 調整
-  ↓
-7. Navigation controller 調整
-  ↓
-8. Guided / Auto / RTL / Auto-stop 受け入れ確認
-  ↓
-9. パラメータ凍結・ログ整理
+| 項目 | 状態 |
+| --- | --- |
+| Compass PreArm警告 | Auto後に `PreArm: Check mag field (xy diff:117>100)` が出たため、次回ARM前に再確認 |
+| Battery failsafe | `BATT_LOW_VOLT` / `BATT_CRT_VOLT` / `BATT_FS_*` は未確定。長時間運用前に設定する |
+| LiDAR走行中安定性 | 静置では良好。走行ログでは `RFND.Dist=0` が多い区間があった |
+| Simple Object Avoidance | 未実走確認 |
+| BendyRuler | `OA_TYPE=1` で `RangeFinder1(cm)=0.00` になったため保留 |
+| RTL / SmartRTL | 未実施 |
+| GCS側Auto-stop | 未実施 |
+
+---
+
+## ファイル命名ルール
+
+作業単位ごとに、パラメータ、BINログ、テスト記録を同じ番号で揃える。
+
+params/tuned/YYYYMMDD_NN_after_<内容>.param
+logs/bin/YYYYMMDD_NN_<内容>.bin
+logs/test_runs/YYYYMMDD_NN_<内容>.md
 ```
 
-各ステップは、合格するまで次へ進まない。一度に複数の挙動を変えない。
+例:
+
+```text
+params/tuned/20260611_03_acro_low_speed_check.param
+logs/bin/20260611_03_acro_low_speed_check.bin
+logs/test_runs/20260611_03_acro_low_speed_check.md
+```
+
+`.BIN`、`.tlog`、動画ファイルはGitに直接入れず、外部保存先をMarkdownに記録する。
+---
 
 ## 0. 作業前安全確認
 
 ### 0.1 必須条件
 
-- [ ] 作業場所は屋外で、歩行者、車両、障害物から十分に離れている。
-- [ ] 送信機、Mission Planner、GCS のどれで止めるかを操作者全員が理解している。
-- [ ] 異常時は、プロポ中立、`DISARM`、走行用 LiPo 切断の順で停止する。
-- [ ] 走行用 LiPo を物理的にすぐ外せる。
-- [ ] 車体を台に載せ、タイヤを浮かせた状態でステアリングとスロットル方向を確認済み。
-- [ ] Manual で意図通り前進、停止、後退できる。
-- [ ] `MOT_SAFE_DISARM=1` の DISARM 時挙動を確認済み。
-- [ ] `ARMING_CHECK=1` で、屋外試験前の PreArm エラーを解消済み。
-- [ ] 屋外 / 自律系試験前に `COMPASS_ENABLE=1` へ戻し、Compass Calibration を実施済み。
-- [ ] GPS/Compassマスト長変更後の長さ、固定状態、向き、Compass Calibration前後の`.param`を記録済み。
-- [ ] PM02 の電圧表示をテスター実測と比較済み。
-- [ ] `BATT_LOW_VOLT` / `BATT_CRT_VOLT` / `BATT_FS_*` は、最低限「警告を見て中止できる」運用値にしている。
-- [ ] RCフェイルセーフの検出と復帰を、タイヤを浮かせた地上状態で確認済み。
-- [ ] Speed / Turn Rate 調整に使う Acro モードを、実際に操作できるモード位置へ割り当て済み。
+- 走行場所は歩行者、車両、障害物から十分に離れている。
+- 送信機、Mission Planner、GCSのどれで止めるかを操作者が理解している。
+- 異常時は、プロポ中立、HoldまたはManual、DISARM、走行用LiPo切断の順で停止する。
+- 走行用LiPoを物理的にすぐ外せる。
+- `ARMING_CHECK=1` のまま進める。
+- `MOT_SAFE_DISARM=1` のDISARM時出力停止を確認済み。
+- 屋外 / 自律系では `COMPASS_ENABLE=1` に戻す。
+- GPSが `3D Fix` している。
+- PreArm / EKF / Compass / GPSエラーが残っていない。
+- Battery表示と実測電圧の差が大きくない。
+- Manual / Hold退避先を必ず残す。
+- 走行場所は歩行者、車両、障害物から十分に離れている。
+- 送信機、Mission Planner、GCSのどれで止めるかを操作者が理解している。
+- 異常時は、プロポ中立、HoldまたはManual、DISARM、走行用LiPo切断の順で停止する。
+- 走行用LiPoを物理的にすぐ外せる。
+- `ARMING_CHECK=1` のまま進める。
+- `MOT_SAFE_DISARM=1` のDISARM時出力停止を確認済み。
+- 屋外 / 自律系では `COMPASS_ENABLE=1` に戻す。
+- GPSが `3D Fix` している。
+- PreArm / EKF / Compass / GPSエラーが残っていない。
+- Battery表示と実測電圧の差が大きくない。
+- Manual / Hold退避先を必ず残す。
 
-### 0.2 モード割当の注意
+### 0.2 中止基準
 
-Rover 公式の Speed / Throttle controller と Turn Rate controller の調整は Acro モードで行う。現在の `20260610_before_tune.param` は `MODE_CH=5` で、`MODE1=4`、`MODE2=4`、`MODE3=0`、`MODE4=0`、`MODE5=4`、`MODE6=4` となっており、Acro が割り当てられていない。
-
-調整前に次を行う。
-
-1. Mission Planner `INITIAL SETUP -> Mandatory Hardware -> Flight Modes` で、実際に切り替わるモード位置を確認する。
-2. Manual と Hold の退避先を必ず残す。
-3. 余っている位置に Acro を割り当てる。現在は Hold が複数あるため、実機スイッチで「緊急退避として使わない重複 Hold 位置」を Acro にする。
-4. タイヤを浮かせた状態で、Manual / Hold / Acro の切替表示を確認する。
-5. 変更前後の `MODE1` から `MODE6` と `MODE_CH` を記録する。
-6. 調整後に運用モード割当を戻す場合は、戻した後の `.param` も保存する。
-
-### 0.3 中止基準
-
-次のどれかが出たら、その日の自律系チューニングは中止する。
+以下のどれかが出たら、Auto / Guided / OA系へ進まない。
 
 | 状態 | 判断 |
 | --- | --- |
-| PreArm エラーが残る | 原因を解消するまで走らせない |
-| Mission Planner HUD に原因不明の `FAILSAFE` 表示が出る | Messages とログで原因を確認する |
-| Compass / EKF / GPS エラーが残る | Manual 低速だけに戻す |
-| 屋内テスト用の `COMPASS_ENABLE=0` のまま | Auto / Guided / RTL は行わない。屋外で `1` に戻してから実施する |
-| ステアリング方向が逆、または中立がずれる | `SERVO1_*` と機械リンクを修正する |
-| スロットル中立で前進 / 後退する | ESC 中立、`SERVO3_TRIM`、RC キャリブレーションを修正する |
-| 通信断時の停止手順が曖昧 | 走行しない |
-| バッテリー表示が実測と大きく違う | 電圧倍率を再確認する |
-| Battery failsafe が未設定のまま長時間走行する | 低速・短時間の Manual 確認だけにする |
+| PreArmエラーが残る | 原因解消まで走行しない |
+| Compass / EKF / GPSエラーが残る | Manual低速だけに戻す |
+| `COMPASS_ENABLE=0` のまま | Auto / Guided / RTL禁止 |
+| Battery表示が実測と大きく違う | 電圧倍率を再確認 |
+| スロットル中立で前進または後退する | ESC中立、`SERVO3_TRIM`、RCキャリブレーション確認 |
+| ステアリング方向が逆または中立がずれる | `SERVO1_*` と機械リンクを確認 |
+| ManualまたはHoldへ即時退避できない | 自律系へ進まない |
+| LiDAR OAテスト時に `RangeFinder1(cm)=0.00` 固定 | OA走行テスト中止 |
 
-## 1. ベースライン保存
+---
 
-今回のチューニング前ベースラインは、すでに次のファイルとして保存されている。
+## 1. Acro一時割当
 
-保存先:
+### 1.1 目的
+
+RoverのSpeed / Throttle controllerとTurn Rate controllerの確認はAcroモードで行う。ManualとHoldの退避先を残したまま、重複しているHold位置の1つをAcroへ変更する。
+
+### 1.2 6/11採用設定
 
 ```text
-params/tuned/20260610_before_tune.param
+params/tuned/20260611_01_after_acro_assignment.param
 ```
 
-このファイルは上書きしない。作業中にパラメータを変更したら、段階ごとに別名で保存する。
+| パラメータ | 値 | モード |
+| --- | ---: | --- |
+| `MODE_CH` | `5` | CH5でモード切替 |
+| `MODE1` | `4` | Hold |
+| `MODE2` | `4` | Hold |
+| `MODE3` | `0` | Manual |
+| `MODE4` | `1` | Acro |
+| `MODE5` | `4` | Hold |
+| `MODE6` | `0` | Manual |
+
+### 1.3 確認手順
+
+1. Mission Planner `INITIAL SETUP -> Mandatory Hardware -> Flight Modes` を開く。
+2. `MODE_CH=5` の実スイッチ位置を確認する。
+3. Manual退避先が残っていることを確認する。
+4. Hold退避先が残っていることを確認する。
+5. 重複しているHold位置の1つをAcroに変更する。
+6. タイヤを浮かせた状態で、Manual / Hold / Acroの表示を確認する。
+7. 変更後の `.param` を保存する。
+
+### 1.4 合格条件
+
+- Manualが最低1箇所残っている。
+- Holdが最低1箇所残っている。
+- Acroが1箇所だけ割り当てられている。
+- AcroからManualまたはHoldへ即時に戻せる。
+
+---
+
+## 2. Acro低速チェック
+
+### 2.1 目的
+
+Acroで低速直進、停止、軽い前後進を行い、Speed controllerとTurn Rate controllerの入口確認を行う。ここでは調整ではなくログ取得を目的とする。
+
+### 2.2 推奨ログ名
 
 ```text
-params/tuned/20260610_after_manual_hold_fs_check.param
-params/tuned/20260610_after_acro_speed_check.param
-params/tuned/20260610_after_turn_rate_check.param
+logs/bin/20260611_03_acro_low_speed_check.bin
+params/tuned/20260611_03_acro_low_speed_check.param
 ```
 
-Mission Planner:
+### 2.3 実施手順
+
+1. 屋外静置でGPS / EKF / Compass / Batteryを確認する。
+2. Manualで1m程度の前進、停止、後退を確認する。
+3. Holdで停止できることを確認する。
+4. Acroへ切り替える。
+5. 低速で5〜10m程度直進する。
+6. スロットル一定時の速度追従を確認する。
+7. 軽く左右ステアを入れる。
+8. 異常があれば即HoldまたはManualへ戻す。
+9. BINログと終了時パラメータを保存する。
+
+### 2.4 6/11実績
+
+| 項目 | 結果 |
+| --- | ---: |
+| 実速度最大 | 1.57m/s |
+| 実速度平均 | 0.95m/s |
+| 目標速度平均 | 0.95m/s |
+| Firmware target | `Pixhawk6C` |
+| Firmware | ArduRover 4.6.3系 |
+| ステアリング | `MAIN 1`, `SERVO1_FUNCTION=26` |
+| スロットル / ESC | `MAIN 3`, `SERVO3_FUNCTION=70` |
+| RC入力 | ステアリング `RC1`, スロットル `RC2` |
+| モード切替 | `MODE_CH=5` |
+| GPS / Compass | 暫定M10 GPSを `GPS1` 10ピンに接続 |
+| LiDAR | Benewake TF-Luna, `TELEM2`, `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` |
+| Raspberry Pi / MAVLink | `TELEM1`, `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` |
+| 電源モジュール | PM02 |
+| Battery | 3S 2200mAh LiPo |
+
+## 3. Acro S字TurnRateチェック
+
+### 3.1 目的
+
+左右旋回の対称性とTurn Rate追従を確認する。ここでも調整よりログ取得を優先する。
+
+### 3.2 推奨ログ名
 
 ```text
-CONFIG / TUNING -> Full Parameter Tree -> Save to File
+logs/bin/20260611_04_acro_s_curve_turnrate_check.bin
 ```
 
-`docs/09_チューニングログ.md` に次を記録する。特に `20260610_before_tune.param` からの差分を残す。
+### 3.3 実施手順
 
-- 日付
-- 場所
-- 路面
-- バッテリー
-- 開始時パラメータ
-- GPS / Compass 状態
-- LiDAR 状態
-- 操作者
-- 中止基準
+1. Acroへ切り替える。
+2. 低速一定で走行する。
+3. 左右に軽いS字を行う。
+4. 左右とも同程度の舵角を入れる。
+5. 急操作はしない。
+6. 異常があればHoldまたはManualへ戻す。
+7. ログ保存後、TurnRate左右差を確認する。
 
-## 2. 屋外 Manual 低速走行
+### 3.4 6/11実績
 
-目的は、制御器のチューニングではなく、車体が安全に止まり、操作者が挙動を読めることを確認すること。
+| 項目 | 結果 |
+| --- | ---: |
+| 実速度範囲 | -1.28〜1.54m/s |
+| 目標速度範囲 | -2.28〜1.56m/s |
+| 速度追従相関 | 0.936 |
+| 速度誤差RMSE | 0.328m/s |
+| 目標TurnRate範囲 | -120〜+120deg/s |
+| 実TurnRate範囲 | -107〜+111deg/s |
+| TurnRate相関 | 0.949 |
+| TurnRate誤差RMSE | 18.5deg/s |
 
-### 2.1 手順
+左右差:
 
-1. 送信機 ON。
-2. 制御系電源 ON。
-3. Mission Planner 接続。
-4. GPS、Compass、Battery、RC 入力、Mode を確認。
-5. 走行用 LiPo 接続。
-6. 車体を台に載せて Arm し、前進 / 後退 / 中立 / Disarm を確認。
-7. 地面に下ろし、Manual で 1 m 程度だけ前進して停止。
-8. 低速の直進、低速の左右旋回、停止を確認。
-9. 異常がなければ 30 秒程度の Manual 低速走行ログを残す。
+| 方向 | 目標平均 | 実測平均 | 差 |
+| --- | ---: | ---: | ---: |
+| 右旋回側 | +71.1deg/s | +54.7deg/s | 約16.4deg/s不足 |
+| 左旋回側 | -72.1deg/s | -56.1deg/s | 約16.0deg/s不足 |
 
-### 2.2 合格基準
+判断:
 
-- 中立で車体が動かない。
-- 前進 / 後退がプロポ入力と一致する。
-- ステアリング方向が一致する。
-- 低速で明確な蛇行、異音、過熱がない。
-- `DISARM` で駆動出力が止まる。
-- GCS / Mission Planner / プロポの停止手順が実機で通る。
+- 左右差は大きくない。
+- 片側だけ曲がらない、片側だけ暴れる状態ではない。
+- 低速Roverとしては正常範囲。
+- `ATC_STR_RAT_*` は変更しない。
 
-## 3. ステアリング基礎確認
+---
 
-### 3.1 ステアリング中立
+## 4. Guided低速確認
 
-低速直進で、プロポのステアリング中立時に車体がまっすぐ進むか確認する。
+### 4.1 目的
 
-調整順:
+MissionなしでGCSから近距離目標を指定し、Navigation制御が破綻しないか確認する。Autoより前の入口確認として使う。
 
-1. まず機械リンクでタイヤ中立を合わせる。
-2. 次に `SERVO1_TRIM` を微調整する。
-3. `SERVO1_MIN` / `SERVO1_MAX` は、タイヤやサーボに無理が出ない範囲に制限する。
+### 4.2 注意
 
-記録する値:
+- GuidedはWaypoint Mission不要。
+- 送信機にGuidedを割り当てる必要はない。
+- Mission PlannerからGuided目標を指定する。
+- 送信機側にはManualとHold退避先を残す。
 
-| 項目 | 記録 |
-| --- | --- |
-| `SERVO1_TRIM` | |
-| `SERVO1_MIN` | |
-| `SERVO1_MAX` | |
-| 低速直進結果 | |
+### 4.3 実施手順
 
-### 3.2 最小旋回半径
+1. GPS / EKF / Compass正常を確認する。
+2. Manualで開始位置へ移動する。
+3. Holdで停止する。
+4. Mission Plannerから1〜5m程度先をGuided目標として指定する。
+5. Roverが低速で目標へ向かうか確認する。
+6. 近づいたらHoldまたはManualへ戻す。
+7. 目標点を何度も変えすぎない。評価が難しくなる。
 
-Manual で、低速かつ最大舵角にして円を描く。左右それぞれの旋回直径を測る。
+### 4.4 6/11実績
 
-| 項目 | 左旋回 | 右旋回 |
+Guided 1回目は目標更新が複数あり、追従評価は粗かった。Guided 2回目は良好。
+
+Guided 2回目:
+
+| 項目 | 結果 |
+| --- | ---: |
+| 実速度最大 | 1.76m/s |
+| 速度追従相関 | 0.98 |
+| WpDist | 6.51m → 0.26m |
+| XTrack最大 | 0.28m |
+| 位置誤差平均 | 0.37m |
+| 位置誤差最大 | 0.51m |
+
+判断:
+
+- Guided低速1点移動として通過。
+
+---
+
+## 5. Auto / Waypoint確認
+
+### 5.1 目的
+
+短距離Waypoint Missionを実行し、Autoでの速度追従、横ずれ、Waypoint到達、Mission Completeを確認する。
+
+### 5.2 注意
+
+AutoはGuidedと違い、事前にWaypoint / Mission設定が必要である。
+
+| モード | Mission設定 | 用途 |
 | --- | --- | --- |
-| 旋回直径 | | |
-| 路面 | | |
-| スロットル目安 | | |
+| Guided | 不要 | GCSからその場で近距離目標を指定 |
+| Auto | 必要 | Mission PlannerでWaypointを書き込んで実行 |
+| Manual / Acro / Hold | 不要 | 送信機操作 |
 
-この結果は `TURN_RADIUS`、`ACRO_TURN_RATE`、`ATC_TURN_MAX_G` の判断材料にする。CC-02 は通常の前輪ステアリング車なので、Skid Steering 用の Pivot Turn 手順は使わない。
+送信機にAutoを割り当てる必要はない。初回はMission PlannerからAutoへ入れ、送信機のManual / Holdで退避する。
 
-## 4. Cruise Speed / Cruise Throttle 学習
+### 5.3 Mission例
 
-Rover の速度制御は、`CRUISE_SPEED` と `CRUISE_THROTTLE` の基準が合っていることが重要である。まず低速で安定して走れる値を作る。
-
-現在の `20260610_before_tune.param` は `CRUISE_SPEED=2`、`CRUISE_THROTTLE=50`、`WP_SPEED=2` である。これは初回屋外チューニングの入口としては速い可能性があるため、最初の Manual / Acro / Auto 確認では低速運用を優先する。速度を下げて試す場合は、変更前後の値を必ず保存する。
-
-### 4.1 前提
-
-- Manual 低速走行が安定している。
-- GPS speed が取れている。
-- 路面が平坦で、直線を 20 m 以上走れる。
-- いきなり高速にしない。最初は CC-02 の安全確認を優先する。
-
-### 4.2 学習手順
-
-1. Mission Planner で未使用 AUX に `Learn Cruise Speed` を割り当てる。
-2. 既存の安全系スイッチ、特に `RC7_OPTION=153` は意味を確認するまで変更しない。
-3. Manual にする。
-4. 直線で 50% から 80% 程度のスロットルを使い、安定して走る。
-5. `Learn Cruise Speed` を数秒 High にして戻す。
-6. Messages に `Cruise Learned` 系のメッセージが出ることを確認する。
-7. `CRUISE_SPEED` と `CRUISE_THROTTLE` を記録する。
-
-Mission Planner の AUX 割当番号は、画面のドロップダウンで `Learn Cruise Speed` を選び、実際に変更された `RCx_OPTION` を記録する。番号を推測で手入力しない。
-
-### 4.3 手動設定する場合
-
-AUX を使わない場合は、Manual 直線走行で次を記録し、保守的に設定する。
-
-| 項目 | 値 |
-| --- | --- |
-| 低速直進で安定する速度 | |
-| そのときのスロットル割合 | |
-| `CRUISE_SPEED` | |
-| `CRUISE_THROTTLE` | |
-
-最初は安全側として、`WP_SPEED` を `CRUISE_SPEED` 以下または同程度にする。初回 Auto / Guided 確認では、2 m/s をそのまま使う前に、より低い速度で操作者が確実に止められることを確認する。
-
-## 5. Speed / Throttle Controller 調整
-
-Rover 公式手順では、ステアリング制御へ進む前に速度 / スロットル制御を調整する。
-
-現在の速度制御パラメータは、`ATC_SPEED_P=0.2`、`ATC_SPEED_I=0.2`、`ATC_SPEED_D=0`、`ATC_SPEED_FF=0`、`ATC_ACCEL_MAX=1`、`ATC_DECEL_MAX=0` である。まずログで追従を見て、必要がある場合だけ小さく変更する。
-
-対象パラメータ:
-
-| パラメータ | 役割 | 初期方針 |
-| --- | --- | --- |
-| `ATC_SPEED_P` | 速度誤差への短期応答 | まずこれを調整 |
-| `ATC_SPEED_I` | 長期誤差の補正 | 通常は P より低め |
-| `ATC_SPEED_D` | 短期変化の抑制 | 初期は `0` のまま |
-| `ATC_SPEED_FF` | Feed Forward | Rover 公式手順では `0` 維持 |
-| `ATC_ACCEL_MAX` | 加速上限 | 実測加速度に合わせる |
-| `ATC_DECEL_MAX` | 減速上限 | 未設定なら `0` のままでも可 |
-| `MOT_SLEWRATE` | スロットル出力変化速度 | 急変が強い場合に制限 |
-
-### 5.1 リアルタイム確認
-
-1. Telemetry 接続を安定させる。
-2. `GCS_PID_MASK=2` にする。
-3. Mission Planner `DATA` 画面で `Tuning` を有効にする。
-4. グラフに `piddesired` と `pidachieved` を表示する。
-5. Acro モードで低速から中速まで走り、速度追従を見る。
-
-### 5.2 調整判断
-
-| 症状 | 主な調整 |
-| --- | --- |
-| 目標速度まで上がるのが遅い | `ATC_SPEED_P` を少し上げる |
-| 速度がギクシャクして不安定 | `ATC_SPEED_P` を下げる |
-| 長い直線でも目標速度に届かない | `ATC_SPEED_I` を少し上げる |
-| ゆっくり速すぎ / 遅すぎを繰り返す | `ATC_SPEED_I` を下げる |
-| 発進が急すぎる | `ATC_ACCEL_MAX`、`MOT_SLEWRATE` を見直す |
-| 減速が遅い | `ATC_DECEL_MAX` を設定して確認する |
-
-変更は 1 回に 1 パラメータだけ行い、変更前後を `docs/09_チューニングログ.md` に記録する。
-
-## 6. Turn Rate Controller 調整
-
-Rover の操舵で最も重要なのは Turn Rate controller である。速度制御がある程度落ち着いてから行う。
-
-現在の旋回制御パラメータは、`ACRO_TURN_RATE=180`、`ATC_STR_RAT_FF=0.2`、`ATC_STR_RAT_P=0.2`、`ATC_STR_RAT_I=0.2`、`ATC_STR_RAT_D=0`、`ATC_STR_RAT_MAX=120`、`ATC_TURN_MAX_G=0.6` である。最初から値を変えず、まず Acro で実測旋回レートと追従ログを取る。
-
-対象パラメータ:
-
-| パラメータ | 役割 | 初期方針 |
-| --- | --- | --- |
-| `ACRO_TURN_RATE` | Acro での操作者入力に対する目標旋回レート | 実測最大旋回レートより少し低くする |
-| `ATC_STR_RAT_FF` | 目標旋回レートから操舵出力への直接成分 | 最重要。最初に調整 |
-| `ATC_STR_RAT_P` | 短期誤差補正 | FF より低くする |
-| `ATC_STR_RAT_I` | 長期誤差補正 | FF より低くする |
-| `ATC_STR_RAT_D` | 短期変化の抑制 | 初期は `0` のまま |
-| `ATC_STR_RAT_MAX` | 全モードで使う最大旋回レート | 最後に `ACRO_TURN_RATE` 近辺へ |
-
-### 6.1 最大旋回レートの見積もり
-
-1. Mission Planner `DATA` 画面で `Tuning` を有効にする。
-2. グラフに `gz` を表示する。
-3. Manual で中速、かつ安全な範囲で強めの旋回を行う。
-4. 表示値を確認する。
-5. 表示単位が centi-deg/sec の場合は 100 で割り、deg/sec に直す。
-6. `ACRO_TURN_RATE` を実測最大値より少し低く設定する。
-
-### 6.2 旋回レート追従確認
-
-1. `GCS_PID_MASK=1` にする。
-2. Mission Planner グラフに `piddesired` と `pidachieved` を表示する。
-3. Acro で中速走行し、広い旋回と狭い旋回を行う。
-4. `pidachieved` が `piddesired` にどれだけ追従するか見る。
-
-### 6.3 調整判断
-
-| 症状 | 主な調整 |
-| --- | --- |
-| 旋回反応が鈍い | `ATC_STR_RAT_FF` を少し上げる |
-| 旋回が目標を越えて行きすぎる | `ATC_STR_RAT_FF` を下げる |
-| 小さな誤差が残る | `ATC_STR_RAT_P` を少し上げる |
-| 旋回中に振動 / 細かい蛇行 | `ATC_STR_RAT_P` を下げる |
-| 長い旋回で目標に届かない | `ATC_STR_RAT_I` を少し上げる |
-| ゆっくり蛇行する | `ATC_STR_RAT_I` を下げる |
-
-`ATC_STR_RAT_P` と `ATC_STR_RAT_I` は、通常 `ATC_STR_RAT_FF` より低い値にする。
-
-## 7. Navigation Controller 調整
-
-Auto / Guided / RTL / SmartRTL は、速度制御と旋回レート制御が済んでから確認する。
-
-屋内テスト用に `COMPASS_ENABLE=0` にしている間は、この章へ進まない。屋外で `COMPASS_ENABLE=1` に戻し、Compass / EKF / GPS の PreArm クリア、Acro での Speed / Turn Rate 確認が終わってから実施する。
-
-対象パラメータ:
-
-| パラメータ | 役割 | 初期方針 |
-| --- | --- | --- |
-| `WP_SPEED` | Auto / Guided の目標速度 | 初期は低速 |
-| `WP_RADIUS` | Waypoint 近傍の許容半径 | 狭くしすぎない |
-| `TURN_RADIUS` | 低速時の最小旋回半径目安 | 実測に合わせる |
-| `ATC_TURN_MAX_G` | 旋回時の横加速度上限 | 転倒 / 横滑りしない値 |
-| `PSC_POS_P` | 位置誤差から速度目標への変換 | 既定 `0.2` を基本維持 |
-| `PSC_VEL_P` | 速度誤差への応答 | 必要時のみ調整 |
-| `PSC_VEL_D` | 角や追従の応答性 | P の 10% 以下を目安 |
-| `PSC_VEL_I` | 長期誤差補正 | P の 20% 程度を目安 |
-| `PSC_VEL_FF` | Feed Forward | `0` 維持 |
-
-### 7.1 試験コース
-
-最初は単純なコースだけ使う。
-
-- 直線往復
-- 大きな長方形
-- Waypoint 間隔は十分に広くする
-- 障害物や人の近くを通さない
-- `WP_SPEED` は Manual で安定確認済みの低速にする
-
-### 7.2 Auto 走行前チェック
-
-- [ ] `COMPASS_ENABLE=1`
-- [ ] Compass Calibration 済み
-- [ ] GPS `3D Fix`
-- [ ] HDOP が悪すぎない
-- [ ] EKF / Compass / GPS の PreArm エラーなし
-- [ ] `FS_THR_ENABLE` 確認済み
-- [ ] Battery 電圧表示と低電圧時の運用判断を確認済み
-- [ ] GCS通信断時の方針を決めている
-- [ ] `WP_SPEED` が低速
-- [ ] `WP_RADIUS` が狭すぎない
-- [ ] 手動で即 Manual / Hold / Disarm へ戻せる
-
-### 7.3 調整判断
-
-| 症状 | 主な調整 |
-| --- | --- |
-| 直線で左右に蛇行する | 速度を下げる。必要なら `PSC_VEL_P` を下げる |
-| コーナーで曲がりきれない | `WP_SPEED` を下げる。`TURN_RADIUS`、`ATC_TURN_MAX_G`、旋回レート調整を見直す |
-| Waypoint 直前で不自然に迷う | `WP_RADIUS` が狭すぎないか確認 |
-| コーナーが鈍いが直線は安定 | `PSC_VEL_D` を少し上げる。ただし P の 10% 以下を目安 |
-| 線へ戻る力が弱い | `PSC_VEL_P` を少し上げる |
-| オーバーシュートが大きい | `WP_SPEED`、`ATC_ACCEL_MAX`、`ATC_DECEL_MAX`、`PSC_VEL_P/D` を見直す |
-
-## 8. Guided / Auto / RTL / Auto-stop 受け入れ確認
-
-屋内テスト用に `COMPASS_ENABLE=0` にしている間は、この章の試験は実施しない。屋外で実施するときに `COMPASS_ENABLE=1` に戻し、Compass Calibration、PreArm、EKF、GPS を確認する。
-
-### 8.1 Guided
-
-1. `WP_SPEED` を低速にする。
-2. 近距離の目標点だけ使う。
-3. 目標地点の手前で停止できるスペースを確保する。
-4. Guided 開始後、すぐ Manual / Hold へ戻せる状態で操作する。
-
-合格基準:
-
-- 目標方向へ進む。
-- 速度が過大にならない。
-- 目標付近で不自然な急旋回をしない。
-- Manual / Hold への切替で即座に操作者が介入できる。
-
-### 8.2 Auto
-
-1. 大きな長方形または直線往復ミッションを作る。
-2. `WP_SPEED` は低速。
-3. 1周だけ実行する。
-4. 終了後、ログと現場メモを残す。
-
-合格基準:
-
-- Waypoint 間を安全に追従する。
-- 直線で大きく蛇行しない。
-- コーナーで転倒 / 横滑りしない。
-- 手動介入できる。
-
-### 8.3 RTL
-
-RTL は GPS / Compass / EKF が安定してから、短距離で確認する。
-
-1. Home 位置が正しく設定されていることを確認する。
-2. Manual で Home から数 m 離れる。
-3. RTL に切り替える。
-4. 期待方向へ戻ることを確認したら、必要に応じて早めに Manual / Hold へ戻す。
-
-合格基準:
-
-- Home 方向が正しい。
-- 速度が過大にならない。
-- 手動介入できる。
-
-### 8.4 Auto-stop / LiDAR
-
-GCS 側 Auto-stop は ArduRover 本体のチューニングとは別だが、運用安全に直結するため受け入れ確認に含める。
-
-確認項目:
-
-- Mission Planner で RangeFinder 値が見える。
-- rover-gcs 側で距離値が更新される。
-- 閾値 `40 / 60 / 80 / 100cm` のどれを使うか記録する。
-- 障害物検出時に `STOP` が送信される。
-- `STOP` 後にプロポ / Mission Planner で安全に再操作できる。
-
-`RNGFND1_MAX_CM` は現在 `.param` で `700`、`docs/06_ArduRoverパラメータ.md` では `200` 候補として記録されている。Auto-stop の最大閾値が `100cm` なら `200cm` で足りるが、実測値、GCS表示、屋外反射条件を見て決める。値を変えた場合は、rover-gcs 側の表示距離と STOP 閾値も同時に確認する。
-
-## 9. Rover QuikTune の扱い
-
-Rover には Lua による `rover-quicktune.lua` がある。手動チューニングの代替または補助として使えるが、この実機では次を満たすまで実施しない。
-
-- Lua Scripts を動かせること。
-- 未使用 RC チャンネルを確保できること。
-- 既存の安全系スイッチ、特に `RC7_OPTION=153` を変更しないこと。
-- Manual、Acro、速度制御、旋回制御が安全に確認済みであること。
-- QuikTune の開始 / 中断 / 保存の AUX 操作を地上で確認済みであること。
-
-使う場合は、公式 Rover QuikTune 手順を確認し、設定ファイル名、AUX 割当、実行結果、保存前後のパラメータ差分を必ず記録する。
-
-現時点では、Acro 未割当かつ自律系未確認のため、QuikTune は後回しにする。Compass は屋内テスト時のみ無効化し、屋外確認時に有効化する前提とする。
-
-## 10. ログ解析と記録
-
-毎回の走行後に、最低限次を記録する。
-
-保存先:
+初回は短距離でよい。
 
 ```text
-logs/test_runs/YYYYMMDD_rover_tune_NN.md
+WP1: 現在地付近
+WP2: 5〜10m先
+WP3: さらに5〜10m先
+WP4: 戻りまたは折り返し
 ```
 
-大容量 `.BIN` / `.tlog` は Git に入れず、外部保存先だけ記録する。
+鋭角ターン、長距離、高速、RTL、SmartRTLはまだ実施しない。
 
-記録テンプレート:
+### 5.4 6/11実績
 
 ```text
-### YYYY-MM-DD Rover tune NN
+logs/bin/20260611_05_navigation_low_speed_straight_check.bin
+```
 
-- 場所:
-- 路面:
-- 天候:
-- 操作者:
-- 機体状態:
-- パラメータ:
-- バッテリー:
-- 実測電圧:
-- Mission Planner表示:
-- モード:
-- 試験目的:
-- 外部ログ保存先:
+ログメッセージ:
 
-#### 変更内容
+```text
+Mission: 1 WP
+Reached waypoint #1
+Mission: 2 WP
+Reached waypoint #2
+Mission: 3 WP
+Reached waypoint #3
+Mission: 4 WP
+Reached waypoint #4
+Mission Complete
+```
 
-| パラメータ | 変更前 | 変更後 | 理由 |
+Waypoint間距離:
+
+| 区間 | 距離 |
+| --- | ---: |
+| WP0 → WP1 | 約0.02m |
+| WP1 → WP2 | 約8.23m |
+| WP2 → WP3 | 約7.27m |
+| WP3 → WP4 | 約7.58m |
+
+Auto追従:
+
+| 項目 | 結果 |
+| --- | ---: |
+| Auto時間 | 約24.5秒 |
+| 実速度最大 | 2.03m/s |
+| 目標速度最大 | 2.00m/s |
+| 速度誤差RMSE | 0.14m/s |
+| 速度追従相関 | 0.987 |
+| TurnRate誤差RMSE | 20.1deg/s |
+| TurnRate相関 | 0.831 |
+| XTrack最大 | 1.21m |
+| XTrack平均 | 0.39m |
+| 位置誤差平均 | 0.59m |
+| 位置誤差最大 | 1.02m |
+
+判断:
+
+- Auto MissionはWaypoint到達とMission Completeを確認済み。
+- Waypoint Auto低速確認として十分。
+- 追加のAuto低速ターンログは必須ではない。
+- `ATC_SPEED_*` / `ATC_STR_RAT_*` は変更不要。
+
+### 5.5 残課題
+
+終了後に以下のPreArm警告が出た。
+
+```text
+PreArm: Check mag field (xy diff:117>100)
+```
+
+次回ARM前に以下を確認する。
+
+1. GPS / Compass搭載位置が動いていないか。
+2. 電源配線、バッテリー、モーター線からCompassが近すぎないか。
+3. 屋外で数分静置して警告が消えるか。
+4. 消えない場合はCompass Calibrationを再実施する。
+
+---
+
+## 6. LiDAR静置距離チェック
+
+### 6.1 目的
+
+TF-Lunaの距離値が、実距離に対して安定して変化するか確認する。Auto-stopやObject Avoidanceの前に必ず実施する。
+
+### 6.2 推奨ログ名
+
+```text
+logs/bin/20260611_06_lidar_static_distance_check.bin
+```
+
+### 6.3 Arm / Disarmとログ
+
+LiDAR静置確認だけなら、本来はArm不要である。ただし `LOG_DISARMED=0` の場合、一度もArmしないとBINログが残らない可能性がある。
+
+確実にBINで残す方法:
+
+```text
+方法A: LOG_DISARMED=1にしてDisarmのまま記録
+方法B: タイヤを浮かせ、安全確保したうえで短時間Armして記録
+方法C: Mission Plannerのtlogを保存
+```
+
+安全上は、`LOG_DISARMED=1` + Disarmのまま確認が望ましい。
+
+### 6.4 実施手順
+
+1. 車体を固定する、またはタイヤを浮かせる。
+2. Mission Plannerへ接続する。
+3. `RangeFinder1(cm)`、`sonarrange`、またはログの `RFND.Dist` を確認する。
+4. LiDAR正面に板、箱、壁など平面対象を置く。
+5. 0.3m / 0.5m / 1.0m / 2.0mで値が追従するか確認する。
+6. 起動直後の数秒は評価対象外にする。
+7. `Stat=4` になってから評価する。
+
+### 6.5 6/11実績
+
+| 項目 | 結果 | 判断 |
+| --- | ---: | --- |
+| RFNDログ数 | 3033件 | 十分 |
+| RFND記録時間 | 約60.6秒 | 十分 |
+| Dist最大 | 2.18m | 2m級まで確認 |
+| Dist中央値 | 1.01m | 距離変化あり |
+| Dist=0率 | 約1.1% | 良好 |
+| `Stat=4` | 約91.7% | 良好 |
+| `Quality` | 常に -1 | TF-Lunaでは異常とは限らない |
+
+5秒ごとの中央値:
+
+| 時間帯 | Dist中央値 | 状態 |
+| ---: | ---: | --- |
+| 0〜5秒 | 0.07m | 開始直後、評価対象外 |
+| 5〜10秒 | 0.32m | 近距離 |
+| 15〜20秒 | 0.57m | 0.5m級 |
+| 25〜30秒 | 1.00m | 1m級 |
+| 35〜40秒 | 2.15m | 2m級 |
+| 40〜45秒 | 2.16m | 2m級で安定 |
+
+判断:
+
+- LiDAR静置距離チェックは通過。
+- 起動直後を除けば実用的に距離変化を取れている。
+- 走行ログで `Dist=0` が多かったのは、向き、対象物、反射条件、屋外環境の影響の可能性がある。
+
+---
+
+## 7. LiDAR / Object Avoidance切り分け
+
+### 7.1 目的
+
+前方LiDARを使った自動停止または障害物回避を確認する。ここではGCS側Auto-stop、ArduPilot Simple Object Avoidance、BendyRulerを混同しない。
+
+### 7.2 機能の整理
+
+| 目的 | 機能 | 主な対象モード | 主なパラメータ |
 | --- | --- | --- | --- |
-| | | | |
+| GCS側で距離を見てSTOP送信 | rover-gcs Auto-stop | GCS実装依存 | GCS側設定、`RFND.Dist`受信 |
+| 障害物前で止まる | Simple Object Avoidance | Manual以外。初回確認はAcro推奨 | `PRX1_TYPE=4`, `AVOID_ENABLE=7` |
+| Auto/Guidedで経路を曲げて避ける | BendyRuler | Auto / Guided / RTL | `OA_TYPE=1`, `OA_BR_LOOKAHEAD`, `OA_MARGIN_MAX` |
 
-#### 結果
+6/11時点では、まずSimple Object Avoidanceを確認し、BendyRulerは保留する方針にした。
 
-- うまくいったこと:
-- 問題:
-- 中止判断:
-- 次の対応:
+### 7.3 RangeFinder基本設定
+
+```text
+RNGFND1_TYPE     = 20
+RNGFND1_ORIENT   = 0
+RNGFND1_MIN_CM   = 20
+RNGFND1_MAX_CM   = 700
+SERIAL2_PROTOCOL = 9
+SERIAL2_BAUD     = 115
 ```
 
-## 11. 完了基準
+`RNGFND1_MAX_CM=200` はGCS側近距離STOP閾値だけを見るなら足りる場合がある。Object Avoidanceで `AVOID_MARGIN=2.0` を使う場合、検出上限2mでは短すぎるため `700` を推奨する。
 
-チューニング完了として扱う条件:
+### 7.4 Simple Object Avoidance初期設定
+
+```text
+OA_TYPE          = 0
+PRX1_TYPE        = 4
+AVOID_ENABLE     = 7
+AVOID_MARGIN     = 2.0
+AVOID_BACKUP_SPD = 0
+RNGFND1_MAX_CM   = 700
+```
+
+`AVOID_MARGIN=0.5` はMission Planner上で範囲外警告が出たため採用しない。`AVOID_MARGIN=2.0` のまま確認する。
+
+`AVOID_BACKUP_SPD=0` は、障害物前で後退し続ける挙動を避け、まず停止確認に寄せるために設定する。
+
+### 7.5 `OA_TYPE=1` の切り分け結果
+
+6/11に `OA_TYPE=1` を入れたところ、Mission Plannerの `RangeFinder1(cm)` が `0.00` のまま変化しなくなった。
+
+その後、`OA_TYPE=0` に戻したところ、距離表示が復活した。
+
+切り分け結果:
+
+```text
+OA_TYPE = 1
+→ RangeFinder1(cm) が 0.00 固定になる
+
+OA_TYPE = 0
+→ RangeFinder1(cm) の距離表示が復活する
+```
+
+このため、現時点ではBendyRuler設定がRangeFinder / Proximity表示または処理と噛み合っていない可能性がある。BendyRulerは後回しにし、まず `OA_TYPE=0` のSimple Object Avoidanceで停止確認を行う。
+
+### 7.6 Mission Plannerで見る項目
+
+#### リアルタイム確認
+
+```text
+Flight Data
+↓
+Status
+↓
+sonarrange / rangefinder1 / RangeFinder1(cm)
+```
+
+期待値:
+
+| 実距離 | 表示例 |
+| ---: | ---: |
+| 0.5m | 50cm前後 |
+| 1.0m | 100cm前後 |
+| 2.0m | 200cm前後 |
+
+#### ログ確認
+
+```text
+DataFlash Logs
+↓
+Review a Log
+↓
+Graph This Data
+↓
+RFND.Dist / RFND.Stat / RFND.Qual
+```
+
+PRX / Proximity側を見る場合:
+
+```text
+Statusで prx / prox / proximity を検索
+または DataFlash Logで PRX 系メッセージを確認
+```
+
+ただし、`RangeFinder1(cm)=0.00` 固定のままなら、PRX以前にRangeFinder入力の復旧を優先する。
+
+---
+
+## 8. Simple Object Avoidance実走確認
+
+### 8.1 目的
+
+`OA_TYPE=0` の状態で、前方LiDARをProximityとして使い、Acro低速走行中に障害物前で前進が抑制されるか確認する。
+
+### 8.2 推奨ログ名
+
+```text
+logs/bin/20260611_08_lidar_simple_avoid_acro_stop_check.bin
+params/tuned/20260611_08_after_lidar_simple_avoid_acro_stop_check.param
+```
+
+日付をまたぐ場合:
+
+```text
+logs/bin/20260612_01_lidar_simple_avoid_acro_stop_check.bin
+params/tuned/20260612_01_after_lidar_simple_avoid_acro_stop_check.param
+```
+
+### 8.3 事前設定
+
+```text
+OA_TYPE          = 0
+PRX1_TYPE        = 4
+AVOID_ENABLE     = 7
+AVOID_MARGIN     = 2.0
+AVOID_BACKUP_SPD = 0
+RNGFND1_MAX_CM   = 700
+```
+
+設定後、FCを再起動する。
+
+### 8.4 事前確認
+
+1. Mission Planner再接続後、5〜10秒待つ。
+2. LiDAR正面0.5mに板を置き、`RangeFinder1(cm)` が50前後になるか確認する。
+3. 1mで100前後、2mで200前後になるか確認する。
+4. `RangeFinder1(cm)=0.00` 固定なら走行テストしない。
+5. Manual / Hold退避先を確認する。
+
+### 8.5 実走手順
+
+1. 障害物を正面2〜3m先に置く。
+2. Acroに入れる。
+3. 低速で前進する。
+4. 2m付近で減速または停止するか確認する。
+5. 止まらない場合は即HoldまたはManualへ退避する。
+6. そのまま突っ込む場合は中止し、`PRX1_TYPE` / `AVOID_ENABLE` / `RangeFinder1` 表示を再確認する。
+
+### 8.6 期待する挙動
+
+| 状態 | 判断 |
+| --- | --- |
+| 2m付近で前進が抑制される | OK |
+| 2m付近で停止する | OK |
+| 少し回避・旋回する | Simple Avoidanceでも起きる可能性あり |
+| そのまま突っ込む | NG。即中止 |
+| 障害物なしでも進まない | 周囲、地面、壁、人を拾っている可能性 |
+| 後退し続ける | `AVOID_BACKUP_SPD=0` を再確認 |
+
+### 8.7 まだやらないこと
+
+```text
+OA_TYPE=1 に戻す
+AutoでBendyRuler確認
+Guidedで障害物回避確認
+RTL
+SmartRTL
+高速走行
+```
+
+---
+
+## 9. BendyRulerへ進む条件
+
+BendyRulerは、Simple Object Avoidanceが通ってから行う。
+
+### 9.1 前提条件
+
+- `RangeFinder1(cm)` が0.5m / 1m / 2mで正常に変化する。
+- `PRX1_TYPE=4` でProximity側に値が出る。
+- `OA_TYPE=0` のAcro低速で障害物前停止または抑制が確認できる。
+- Auto / GuidedでManualまたはHoldへ即退避できる。
+- Compass / EKF / GPS / Batteryが正常。
+
+### 9.2 BendyRuler候補設定
+
+```text
+OA_TYPE = 1
+OA_BR_LOOKAHEAD = 5
+OA_MARGIN_MAX = 2
+```
+
+ただし、6/11時点では `OA_TYPE=1` で `RangeFinder1(cm)=0.00` になる問題が出たため、再試験前に以下を行う。
+
+1. `OA_TYPE=0` でRangeFinder表示が正常な状態を保存する。
+2. `OA_TYPE=1` に変更する。
+3. FC再起動する。
+4. `RangeFinder1(cm)` が0固定にならないか確認する。
+5. 0固定になるならBendyRuler試験は中止し、`OA_TYPE=0` に戻す。
+
+---
+
+## 10. 最終チューニング完了基準
+
+チューニング完了として扱うには、以下を満たす。
 
 | 項目 | 合格基準 |
 | --- | --- |
 | Manual | 低速で直進、旋回、停止、後退が安定 |
-| 停止手段 | プロポ中立、Hold / Manual 切替、Mission Planner / GCS `DISARM`、走行用 LiPo 切断の手順が確認済み |
-| Safety | `ARMING_CHECK=1` で運用。PreArm エラーなし |
-| Compass / GPS | `COMPASS_ENABLE=1`、Compass Calibration 済み、屋外 `3D Fix`、EKF 警告なし |
+| 停止手段 | プロポ中立、Hold / Manual切替、Mission Planner / GCS `DISARM`、走行用LiPo切断手順が確認済み |
+| Safety | `ARMING_CHECK=1` で運用。PreArmエラーなし |
+| Compass / GPS | `COMPASS_ENABLE=1`、Compass Calibration済み、屋外 `3D Fix`、EKF警告なし |
 | RC FS | 地上試験で検出と復帰を確認済み |
-| Battery | 電圧表示が実測と合い、低電圧時の中止判断または failsafe 方針が記録済み |
+| Battery | 電圧表示が実測と合い、低電圧時の中止判断またはfailsafe方針が記録済み |
 | Speed | `CRUISE_SPEED` / `CRUISE_THROTTLE` が実走行と一致 |
-| Throttle | `piddesired` と `pidachieved` が極端に乖離しない |
-| Turn Rate | 中速 Acro 旋回で目標と実旋回が追従 |
-| Navigation | 低速 Auto で直線往復または長方形コースを安全に完走 |
-| RTL | 短距離で Home 方向へ戻ることを確認 |
-| Auto-stop | GCS側 STOP が意図通り働く |
+| Throttle | 目標速度と実速度が極端に乖離しない |
+| Turn Rate | Acro旋回で目標と実旋回が概ね追従 |
+| Navigation | 低速AutoでWaypoint到達とMission Completeを確認 |
+| RTL | 短距離でHome方向へ戻ることを確認。未実施なら未完扱い |
+| LiDAR静置 | 0.3m / 0.5m / 1m / 2mで距離が追従 |
+| Simple Object Avoidance | Acro低速で障害物前の停止または前進抑制を確認 |
+| GCS Auto-stop | rover-gcs側STOPを使う場合のみ、別途確認 |
+| BendyRuler | 必要な場合のみ、`OA_TYPE=1`でAuto / Guided回避を確認 |
 | パラメータ | 凍結版 `.param` を `params/tuned/` に保存 |
 | ログ | 受け入れ走行ログの外部保存先を記録 |
 
@@ -552,6 +716,69 @@ logs/test_runs/YYYYMMDD_rover_tune_NN.md
 ```text
 params/tuned/YYYYMMDD_pixhawk6c_rover_tuned_01.param
 ```
+
+---
+
+## 11. 6/11時点で変更しないパラメータ
+
+以下は、6/11のログ解析結果から現時点では変更しない。
+
+```text
+ATC_SPEED_*
+ATC_STR_RAT_*
+```
+
+理由:
+
+- Acro低速チェックでSpeed追従が良好。
+- S字TurnRateチェックで左右差が小さい。
+- Guided / Autoでも速度追従とWaypoint到達が確認できた。
+- いきなりゲインを変更するより、残課題であるLiDAR / OA / Compass / Battery failsafeの確認を優先する。
+
+---
+
+## 12. 次回の最優先作業
+
+次回は以下の順で進める。
+
+```text
+1. Compass PreArm警告が再発しないか確認
+2. RangeFinder1(cm) が0.5m / 1m / 2mで正常に出るか確認
+3. OA_TYPE=0 のまま Simple Object Avoidance設定を確認
+4. Acro低速で障害物前停止または前進抑制を確認
+5. 結果をログ保存
+6. 必要ならGCS Auto-stopまたはBendyRulerへ進む
+```
+
+推奨ログ名:
+
+```text
+20260612_01_lidar_simple_avoid_acro_stop_check
+```
+
+推奨保存先:
+
+```text
+logs/bin/20260612_01_lidar_simple_avoid_acro_stop_check.bin
+params/tuned/20260612_01_after_lidar_simple_avoid_acro_stop_check.param
+logs/test_runs/20260612_01_lidar_simple_avoid_acro_stop_check.md
+```
+
+---
+
+## 13. Rover QuikTune の扱い
+
+RoverにはLuaによる `rover-quicktune.lua` があり、手動チューニングの補助として使える。ただし、この機体では次の条件を満たすまで後回しにする。
+
+- Lua Scriptsを有効化できること。
+- 未使用RCチャンネルを確保できること。
+- 既存の安全系スイッチ、特に `RC7_OPTION=153` の意味が確定していること。
+- Manual / Hold退避、Acro低速、Speed controller、Turn Rate controllerが安定していること。
+- QuikTuneの開始 / 中断 / 保存のAUX操作を地上で確認済みであること。
+
+使う場合は、公式 Rover QuikTune 手順を確認し、設定ファイル名、AUX割当、実行結果、保存前後のパラメータ差分を必ず記録する。
+
+2026-06-11時点では、Acro / Guided / Autoは通過したが、LiDAR / Object Avoidance、Compass PreArm警告、Battery failsafeが残っているため、QuikTuneはまだ実施しない。
 
 ## 参考リンク
 
@@ -567,5 +794,4 @@ params/tuned/YYYYMMDD_pixhawk6c_rover_tuned_01.param
 
 | 日付 | 内容 |
 | --- | --- |
-| 2026-06-09 | 初版作成。ArduCopter チューニング手順書の安全確認、段階試験、記録方針を引き継ぎ、ArduRover の Speed / Throttle、Turn Rate、Navigation 手順へ置き換え |
-| 2026-06-10 | `params/tuned/20260610_before_tune.param` に合わせて更新。`COMPASS_ENABLE=0` は屋内テスト用の一時設定として整理し、Acro 未割当、Battery failsafe 未設定、`CRUISE_SPEED/WP_SPEED=2` を現在の入口条件として反映 |
+| 2026-06-11 | 6/11実走結果を反映。Acro、S字TurnRate、Guided、Auto Mission、LiDAR静置、Object Avoidance切り分けを追記。`OA_TYPE=1` で `RangeFinder1(cm)=0.00` になる事象を反映し、まず `OA_TYPE=0` のSimple Object Avoidanceから確認する方針に更新 |
