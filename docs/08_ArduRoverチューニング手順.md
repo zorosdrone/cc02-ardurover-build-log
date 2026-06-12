@@ -210,7 +210,7 @@ params/tuned/20260611_03_acro_low_speed_check.param
 | スロットル / ESC | `MAIN 3`, `SERVO3_FUNCTION=70` |
 | RC入力 | ステアリング `RC1`, スロットル `RC2` |
 | モード切替 | `MODE_CH=5` |
-| GPS / Compass | 暫定M10 GPSを `GPS1` 10ピンに接続 |
+| GPS / Compass | Rover向けに追加購入したM10 GPSを `GPS1` 10ピンに接続 |
 | LiDAR | Benewake TF-Luna, `TELEM2`, `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` |
 | Raspberry Pi / MAVLink | `TELEM1`, `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` |
 | 電源モジュール | PM02 |
@@ -831,7 +831,15 @@ RoverにはLuaによる `rover-quicktune.lua` があり、手動チューニン�
 
 使う場合は、公式 Rover QuikTune 手順を確認し、設定ファイル名、AUX割当、実行結果、保存前後のパラメータ差分を必ず記録する。
 
-2026-06-11時点では、Acro / Guided / Autoは通過したが、LiDAR / Object Avoidance、Compass PreArm警告、Battery failsafeが残っているため、QuikTuneはまだ実施しない。
+2026-06-12時点では、LiDARの室内確認は完了扱いにし、QuickTuneを早く行う場合はObject Avoidanceの深掘りを後回しにしてよい。ただし、次の最小ゲートを満たすまでQuikTuneは開始しない。
+
+- Compass / GPS / EKF / BatteryにPreArm相当の問題がない。
+- Manual / Hold / Disarmへ即時退避できる。
+- Circle modeへ安全に入れる。
+- Lua Scriptsを有効化し、`rover-quicktune.lua` をSDカードへ配置済み。
+- `RTUN_ENABLE=1`。
+- QuikTune開始 / 中断操作を地上で確認済み。
+- 障害物回避系がQuickTune挙動へ干渉しないよう、広い場所で実施する。
 
 ## 参考リンク
 
