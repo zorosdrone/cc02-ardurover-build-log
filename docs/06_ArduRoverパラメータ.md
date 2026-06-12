@@ -47,7 +47,7 @@ params/tuned/20260610_after_acro_speed_check.param
 | Mode | `MODE1/2/5/6` | `4` | Hold。重複しているためAcro一時割当候補。 |
 | Mode | `MODE3/4` | `0` | Manual。必ず退避先として残す。 |
 | Aux | `RC7_OPTION` | `153` | 意味が確定するまで変更しない。 |
-| GPS | `GPS1_TYPE` / `GPS2_TYPE` | `1` / `0` | 採用M10 GPS 1台。旧M8N GPS2流用は保留。 |
+| GPS | `GPS1_TYPE` / `GPS2_TYPE` | `1` / `0` | Rover向けに追加購入した採用M10 GPS 1台。旧M8N GPS2流用は中止。 |
 | Compass | `COMPASS_ENABLE` | `0` | 屋内Manualテスト用。屋外/自律系前に`1`へ戻す。 |
 | Compass | `COMPASS_ORIENT` | `6` | M10 GPS/Compass搭載向きと一致するか確認する。 |
 | Compass | `COMPASS_OFS_X/Y/Z` | `16.68246 / -197.9356 / 107.2597` | キャリブレーション値あり。マスト長変更後は再実施する。 |

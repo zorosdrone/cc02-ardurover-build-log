@@ -12,7 +12,7 @@ Pixhawk 6C MiniへArduRoverをインストールし、CC-02 Roverとしてベン
 - Firmware target: `Pixhawk6C`
 - Vehicle firmware: ArduRover
 - 電源モジュール: PM02
-- GPS / Compass: 旧M8Nの`GPS2`流用は保留。購入済みM10 GPSをGPSモジュールとして採用し、`GPS1` 10ピンへ接続する
+- GPS / Compass: 旧M8Nの`GPS2`流用は中止。Rover向けに追加購入したM10 GPSをGPSモジュールとして採用し、`GPS1` 10ピンへ接続する
 - Raspberry Pi / MAVLink: `TELEM1`へ接続済み
 - LiDAR / RangeFinder: `TELEM2`へ接続済み
 - ステアリング: `MAIN 1`
@@ -89,8 +89,8 @@ CONFIG / TUNING -> Full Parameter Tree -> Save to File
 | --- | --- | --- | --- | --- |
 | Raspberry Pi / MAVLink | `TELEM1` | `SERIAL1` | `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` | 移行済み。動作確認OK。 |
 | LiDAR / RangeFinder | `TELEM2` | `SERIAL2` | `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` | 移行済み。Mission PlannerでSonar Range表示OK。 |
-| M10 GPS | `GPS1` | GPS1系 | `GPS1_TYPE=1` | 2026-06-09、10ピン接続で屋内`Not Fix`、屋外`3D Fix`確認済み。2026-06-12、GPSモジュールとして採用。 |
-| 旧M8N GPS | `GPS2` | `SERIAL4` | `SERIAL4_PROTOCOL=5`, `SERIAL4_BAUD=230`候補 | LED点灯後も`No GPS`のため流用は保留。 |
+| M10 GPS | `GPS1` | GPS1系 | `GPS1_TYPE=1` | Rover向けに追加購入済み。2026-06-09、10ピン接続で屋内`Not Fix`、屋外`3D Fix`確認済み。2026-06-12、GPSモジュールとして採用。 |
+| 旧M8N GPS | `GPS2` | `SERIAL4` | `SERIAL4_PROTOCOL=5`, `SERIAL4_BAUD=230`候補 | LED点灯後も`No GPS`のため流用中止。履歴としてのみ残す。 |
 
 注意:
 
@@ -100,6 +100,9 @@ CONFIG / TUNING -> Full Parameter Tree -> Save to File
 - 1つのUARTにRaspberry PiとLiDARを同時接続しない。
 
 ### GPS2 6ピン
+
+この節は旧M8N流用検討時の履歴である。
+2026-06-12時点ではRover向けに追加購入したM10 GPSを`GPS1`で採用したため、旧M8Nの`GPS2`流用作業は中止する。
 
 結論:
 
@@ -235,7 +238,7 @@ Mission Plannerで確認すること:
 - Compass画面でIST8310系コンパスが見えていることを確認。
 - 当時は`Compass not calibrated`表示あり。2026-06-10現在はCompassオフセット値が入っているため、屋外前に`COMPASS_ENABLE=1`へ戻し、搭載位置固定後にPreArmと磁場差を再確認する。
 
-旧M8Nを再開する場合だけ、GPS2 6ピンへまとめる方針でCompass I2C線も同時に確認する。現在の屋外チューニング前確認は、採用M10 GPS / Compassの`GPS1`接続を前提に進める。
+旧M8NのGPS2流用は中止したため、現在の屋外チューニング前確認は、採用M10 GPS / Compassの`GPS1`接続を前提に進める。GPS2 6ピン変換の記述は履歴として残す。
 
 ### OLED Module I2C実験
 
@@ -666,7 +669,7 @@ COMPASS_USE = 1
 GPS1_TYPE = 1
 ```
 
-この機体は暫定M10 GPS / Compass 1台を使う前提なので、複数Compassを使わない場合は以下のままでよい。
+この機体はRover向けに追加購入したM10 GPS / Compass 1台を使う前提なので、複数Compassを使わない場合は以下のままでよい。
 
 ```text
 COMPASS_USE2 = 0
@@ -748,7 +751,7 @@ ARMING_CHECK = 1
 2. ファームウェア、ボード、ArduRover起動を確認。
 3. PM02のみ接続し、電圧表示を確認。
 4. RC受信機を接続し、Radio Calibration。
-5. 暫定M10 GPSを`GPS1`へ接続し、GPS fixとCompass認識を確認。
+5. 採用M10 GPSを`GPS1`へ接続し、GPS fixとCompass認識を確認。
 6. TELEM1へRaspberry Piを接続し、MAVLink通信を確認。
 7. TELEM2へLiDARを接続し、RangeFinder値を確認。
 8. ステアリングサーボを`MAIN 1`へ接続し、出力方向を確認。
