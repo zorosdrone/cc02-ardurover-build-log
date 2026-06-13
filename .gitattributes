@@ -9,3 +9,13 @@ logs/accepted/**/*.bin filter=lfs diff=lfs merge=lfs -text
 logs/accepted/**/*.BIN filter=lfs diff=lfs merge=lfs -text
 logs/accepted/**/*.ulg filter=lfs diff=lfs merge=lfs -text
 logs/accepted/**/*.tlog filter=lfs diff=lfs merge=lfs -text
+
+# Public test videos are stored with Git LFS.
+videos/*.mp4 filter=lfs diff=lfs merge=lfs -text
+videos/*.MP4 filter=lfs diff=lfs merge=lfs -text
+videos/*.mov filter=lfs diff=lfs merge=lfs -text
+videos/*.MOV filter=lfs diff=lfs merge=lfs -text
+videos/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
+videos/**/*.MP4 filter=lfs diff=lfs merge=lfs -text
+videos/**/*.mov filter=lfs diff=lfs merge=lfs -text
+videos/**/*.MOV filter=lfs diff=lfs merge=lfs -text
