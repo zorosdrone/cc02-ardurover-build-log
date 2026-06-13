@@ -58,12 +58,13 @@ params/tuned/20260610_before_tune.param
 | 項目 | 状態 |
 | --- | --- |
 | Compass PreArm警告 | Auto後に `PreArm: Check mag field (xy diff:117>100)` が出たため、次回ARM前に再確認 |
-| Battery failsafe | `BATT_LOW_VOLT` / `BATT_CRT_VOLT` / `BATT_FS_*` は未確定。長時間運用前に設定する |
+| Battery failsafe | 2026-06-13 `BATT_LOW_VOLT=10.8`, `BATT_CRT_VOLT=10.2`, `BATT_FS_LOW_ACT=1`, `BATT_FS_CRT_ACT=2` を設定し、動作確認成功 |
 | LiDAR走行中安定性 | 静置では良好。走行ログでは `RFND.Dist=0` が多い区間があった |
-| Simple Object Avoidance | 2026-06-12 Acro実走で2m停止せず。未通過 |
+| Simple Object Avoidance | 2026-06-13 Acro低速で障害物停止の再現を確認。通過扱い |
 | BendyRuler | `OA_TYPE=1` で `RangeFinder1(cm)=0.00` になったため保留 |
-| RTL / SmartRTL | 未実施 |
-| GCS側Auto-stop | 未実施 |
+| RTL | 2026-06-13 短距離でHomeへ戻ることを確認。通過扱い |
+| RTL / SmartRTL | 2026-06-13 障害物なしの短距離帰還・経路復帰は成功。RTL / SmartRTL中もLiDARはある程度認識しているが、障害物停止の精度は同程度で保証なし。障害物ありでは停止手段として使わない |
+| GCS側Auto-stop | 不要。採用しない |
 
 ---
 
@@ -696,11 +697,30 @@ SmartRTL
 - 実走時点では `PRX1_TYPE=0` だったため、LiDARがProximity入力として有効化されていなかった可能性が高い。
 - その後 `PRX1_TYPE=4` にしたところ距離表示が消えたため、Proximity Viewer / `PRX` 側に値が出るかを確認する必要がある。
 - 走行再試験の前に、静置またはタイヤ浮かせ状態でProximity ViewerとDataFlashの `PRX` ログを確認する。
+- この未通過判断は2026-06-13の再現確認で解消済み。
 
-次の確認名:
+当時の次の確認名:
 
 ```text
 20260612_02_lidar_proximity_static_check
+```
+
+### 8.9 2026-06-13 Acro低速障害物停止再現
+
+2026-06-13に、Acro低速での障害物停止の再現を確認した。
+
+判断:
+
+- Simple Object AvoidanceのAcro低速停止確認は通過扱い。
+- `OA_TYPE=0` のSimple Object Avoidanceを、現時点のLiDAR障害物停止方針として採用する。
+- BendyRulerは引き続き保留し、Auto / Guidedでの障害物回避確認へはまだ進めない。
+- 次はRTL / SmartRTL、Battery failsafe、GCS側Auto-stopの必要性確認へ進む。
+
+推奨記録名:
+
+```text
+logs/test_runs/20260613_01_lidar_simple_avoid_acro_stop_recheck.md
+params/tuned/20260613_01_after_lidar_simple_avoid_acro_stop_recheck.param
 ```
 
 ---
@@ -752,9 +772,10 @@ OA_MARGIN_MAX = 2
 | Turn Rate | Acro旋回で目標と実旋回が概ね追従 |
 | Navigation | 低速AutoでWaypoint到達とMission Completeを確認 |
 | RTL | 短距離でHome方向へ戻ることを確認。未実施なら未完扱い |
+| RTL / SmartRTL | 障害物なしの短距離帰還・経路復帰を確認。障害物ありでは停止手段として使用しない |
 | LiDAR静置 | 0.3m / 0.5m / 1m / 2mで距離が追従 |
-| Simple Object Avoidance | 2026-06-12 Acro低速では2m停止せず。Proximity / PRX確認へ戻る |
-| GCS Auto-stop | rover-gcs側STOPを使う場合のみ、別途確認 |
+| Simple Object Avoidance | 2026-06-13 Acro低速で障害物停止の再現を確認。通過扱い |
+| GCS Auto-stop | 不要。採用しない |
 | BendyRuler | 必要な場合のみ、`OA_TYPE=1`でAuto / Guided回避を確認 |
 | パラメータ | 凍結版 `.param` を `params/tuned/` に保存 |
 | ログ | 受け入れ走行ログの外部保存先を記録 |
@@ -787,51 +808,76 @@ ATC_STR_RAT_*
 
 ## 12. 次回の最優先作業
 
-2026-06-12のAcro実走では2m付近で停止しなかった。実走時点では `PRX1_TYPE=0` だったため、次回は走行再試験ではなく、静置またはタイヤ浮かせ状態で `RangeFinder -> Proximity -> Avoidance` の接続確認を行う。
+2026-06-13にAcro低速での障害物停止再現、短距離RTLでHomeへ戻れること、障害物なしのSmartRTL経路復帰を確認した。一方で、RTL / SmartRTL中に障害物を置いた場合、LiDAR / Proximityの認識はあるものの、停止するかどうかの精度は似た傾向で、停止保証としては扱えない。GCS側Auto-stopは不要として採用しない。次回は障害物ありのRTL / SmartRTLを停止手段として扱わず、Battery failsafeと障害物接触時の停止手段を優先して確認する。
 
 ```text
 1. Compass PreArm警告が再発しないか確認
-2. PRX1_TYPE=0でRangeFinder1(cm) が0.5m / 1m / 2mで正常に出るか確認
-3. PRX1_TYPE=4に変更してFC再起動
-4. RangeFinder1(cm) 表示が消えるか、Proximity Viewer側へ移るか確認
-5. Mission PlannerのProximity Viewerで前方障害物が出るか確認
-6. DataFlashログにPRXメッセージが出ているか確認
-7. PRX1_TYPE=4 / AVOID_ENABLE=7 / AVOID_MARGIN=2.0 / AVOID_BACKUP_SPD=0 が再起動後も残っているか確認
-8. RNGFND1_ORIENT=0 とLiDARの前向き実装が合っているか確認
-9. RCx_OPTION=40 が設定されている場合、Proximity AvoidanceがON側になっているか確認
-10. Proximity Viewer / PRXに出ない場合はPRX1_TYPE=0へ戻す
-11. Proximity Viewer / PRXに出た場合だけAcro低速の障害物停止を再試験する
+2. 長時間走行前にBattery実測電圧とMission Planner表示を比較し、電圧倍率の差を再確認する
+3. Simple Object Avoidance設定が再起動後も残っているか確認
+4. RTL / SmartRTL中に障害物へ接触した場合の退避手順を確認する
+5. GCS側Auto-stopは使わず、ArduPilot Simple Object Avoidanceを主な障害物前停止手段にする
+6. RTL / SmartRTLは障害物がない経路だけで使う
+7. BendyRulerは必要性が出るまで保留する
 ```
+
+補足:
+
+```text
+20260613_03a_rtl_smartrtl_LiDAR_stop_check.bin
+```
+
+の確認では、RTL / SmartRTL中にも `RFND` / `PRX` が記録され、近距離障害物はある程度認識されていた。ただし、近距離認識時に必ず停止するわけではなく、RTLとSmartRTLで停止精度は似た傾向だったため、RTL / SmartRTL中の障害物停止保証としては扱わない。
 
 推奨ログ名:
 
 ```text
-20260612_02_lidar_proximity_static_check
+20260613_04_battery_failsafe_stop_procedure
 ```
 
 推奨保存先:
 
 ```text
-logs/accepted/20260612_02_lidar_proximity_static_check.bin
-params/tuned/20260612_02_after_lidar_proximity_static_check.param
-logs/test_runs/20260612_02_lidar_proximity_static_check.md
+logs/test_runs/20260613_04_battery_failsafe_stop_procedure.md
+params/tuned/20260613_04_after_battery_failsafe_stop_procedure.param
 ```
 
 ---
 
 ## 13. Rover QuikTune の扱い
 
-RoverにはLuaによる `rover-quicktune.lua` があり、手動チューニングの補助として使える。ただし、この機体では次の条件を満たすまで後回しにする。
+RoverにはLuaによる `rover-quicktune.lua` があり、手動チューニングの補助として使える。
 
-- Lua Scriptsを有効化できること。
-- 未使用RCチャンネルを確保できること。
-- 既存の安全系スイッチ、特に `RC7_OPTION=153` の意味が確定していること。
-- Manual / Hold退避、Acro低速、Speed controller、Turn Rate controllerが安定していること。
-- QuikTuneの開始 / 中断 / 保存のAUX操作を地上で確認済みであること。
+2026-06-13時点では、Acro低速、Guided / Auto、RTL、SmartRTL障害物なし、Simple Object Avoidance、Battery failsafeの確認が進んだため、QuikTune準備へ進んでよい。ただし、実走開始前に次を確認する。
 
-使う場合は、公式 Rover QuikTune 手順を確認し、設定ファイル名、AUX割当、実行結果、保存前後のパラメータ差分を必ず記録する。
+- Lua Scriptsを有効化する。
+- `rover-quicktune.lua` をSDカード `APM/scripts` に配置する。
+- `RTUN_ENABLE=1` を設定する。
+- `RC7_OPTION=153` は意味が確定するまで変更しない。
+- QuikTune開始/中止は、まずMission PlannerのAux Function画面で1行を `Scripting1` に設定して行う。
+- Manual / Hold / Disarmへ即退避できることを確認する。
+- Circle modeで低速安定旋回できる広い場所を確保する。
 
-2026-06-11時点では、Acro / Guided / Autoは通過したが、LiDAR / Object Avoidance、Compass PreArm警告、Battery failsafeが残っているため、QuikTuneはまだ実施しない。
+初回推奨:
+
+```text
+SCR_ENABLE  = 1
+RTUN_ENABLE = 1
+CIRC_SPEED  = 1.0
+CIRC_RADIUS = 5
+```
+
+`SCR_ENABLE=1` 設定後はFC再起動が必要。`CIRC_SPEED=1.0` が速い場合は `0.7` から始める。
+
+記録先:
+
+```text
+logs/test_runs/20260613_05_quiktune_precheck.md
+params/tuned/20260613_05_before_quiktune.param
+params/tuned/20260613_06_after_quiktune.param
+logs/test_runs/20260613_06_quiktune_result.md
+```
+
+公式 Rover QuikTune 手順を確認し、設定ファイル名、AUX割当、実行結果、保存前後のパラメータ差分を必ず記録する。
 
 ## 参考リンク
 
@@ -847,6 +893,11 @@ RoverにはLuaによる `rover-quicktune.lua` があり、手動チューニン�
 
 | 日付 | 内容 |
 | --- | --- |
+| 2026-06-13 | Battery failsafe動作確認後、QuikTune準備へ進む方針に更新。`RC7_OPTION=153` は変更せず、Mission Planner Aux Function画面で1行を `Scripting1` に設定し、その行の `Mid` / `Low` ボタンで開始/中止する方針 |
+| 2026-06-13 | GCS側Auto-stopは不要として不採用。障害物前停止はArduPilot Simple Object Avoidance、退避はManual / Hold / Disarmで扱う |
+| 2026-06-13 | 障害物なしのRTL / SmartRTLは成功。RTL / SmartRTL中の障害物停止精度は似た傾向で保証できないため、どちらも障害物停止手段としては扱わない方針に更新 |
+| 2026-06-13 | 短距離RTLでHomeへ戻ることを確認。RTLを通過扱いに変更し、SmartRTLは未実施として分離 |
+| 2026-06-13 | Acro低速で障害物停止の再現を確認。Simple Object Avoidanceを通過扱いに変更し、次回作業をRTL / SmartRTL、Battery failsafe、GCS側Auto-stop判断へ更新 |
 | 2026-06-12 | `PRX1_TYPE=0` だったこと、`PRX1_TYPE=4` にすると距離表示が消えることを反映。RangeFinder単体確認とProximity Viewer / PRX確認を分ける方針に更新 |
 | 2026-06-12 | Acro低速でSimple Object Avoidanceが2m停止しなかった結果を反映。次回作業を実走再試験ではなく、Proximity Viewer / PRXログ確認へ変更 |
 | 2026-06-11 | 6/11実走結果を反映。Acro、S字TurnRate、Guided、Auto Mission、LiDAR静置、Object Avoidance切り分けを追記。`OA_TYPE=1` で `RangeFinder1(cm)=0.00` になる事象を反映し、まず `OA_TYPE=0` のSimple Object Avoidanceから確認する方針に更新 |
