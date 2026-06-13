@@ -61,7 +61,8 @@ params/tuned/20260610_before_tune.param
 | Battery failsafe | 2026-06-13 `BATT_LOW_VOLT=10.8`, `BATT_CRT_VOLT=10.2`, `BATT_FS_LOW_ACT=1`, `BATT_FS_CRT_ACT=2` を設定し、動作確認成功 |
 | LiDAR走行中安定性 | 静置では良好。走行ログでは `RFND.Dist=0` が多い区間があった |
 | Simple Object Avoidance | 2026-06-13 Acro低速で障害物停止の再現を確認。通過扱い |
-| BendyRuler | `OA_TYPE=1` で `RangeFinder1(cm)=0.00` になったため保留 |
+| Guided障害物停止 | 2026-06-13 現在のObject Avoidance設定で、Guided中に障害物があると停止することを確認 |
+| BendyRuler | Guided中の障害物停止は確認済み。ただし自動で回り込む回避は未採用。河原では石・地面反射に注意 |
 | RTL | 2026-06-13 短距離でHomeへ戻ることを確認。通過扱い |
 | RTL / SmartRTL | 2026-06-13 障害物なしの短距離帰還・経路復帰は成功。RTL / SmartRTL中もLiDARはある程度認識しているが、障害物停止の精度は同程度で保証なし。障害物ありでは停止手段として使わない |
 | GCS側Auto-stop | 不要。採用しない |
@@ -753,6 +754,26 @@ OA_MARGIN_MAX = 2
 4. `RangeFinder1(cm)` が0固定にならないか確認する。
 5. 0固定になるならBendyRuler試験は中止し、`OA_TYPE=0` に戻す。
 
+### 9.3 2026-06-13 Guided障害物停止確認
+
+現在のObject Avoidance設定で、Guided mode中に障害物があると停止することを確認した。
+
+あわせて、`AVOID_ENABLE=0` ではGuided目標へ正しい方向に進むことを確認した。このため、以前の反対方向へ行こうとする挙動は、Guided目標やGPSそのものよりも、Object Avoidance側の介入、または河原の石・地面反射を拾った影響の可能性が高い。
+
+判断:
+
+- Guided中の障害物停止は通過。
+- 障害物を避けて別方向へ進む自動回避は未採用。
+- 河原ではBendyRuler評価を続けず、石の少ない平坦地で確認する。
+- 前方TF-Luna 1個では横方向の空きは直接見えていないため、回り込み成功を前提にしない。
+
+記録先:
+
+```text
+logs/test_runs/20260613_07_guided_obstacle_stop_check.md
+params/tuned/20260613_07_after_guided_obstacle_stop_check.param
+```
+
 ---
 
 ## 10. 最終チューニング完了基準
@@ -776,7 +797,8 @@ OA_MARGIN_MAX = 2
 | LiDAR静置 | 0.3m / 0.5m / 1m / 2mで距離が追従 |
 | Simple Object Avoidance | 2026-06-13 Acro低速で障害物停止の再現を確認。通過扱い |
 | GCS Auto-stop | 不要。採用しない |
-| BendyRuler | 必要な場合のみ、`OA_TYPE=1`でAuto / Guided回避を確認 |
+| Guided障害物停止 | 2026-06-13 現在設定で障害物停止を確認。`AVOID_ENABLE=0`では正しい方向へ進むことも確認 |
+| BendyRuler | 必要な場合のみ、石の少ない平坦地で `OA_TYPE=1` のAuto / Guided回避を確認 |
 | パラメータ | 凍結版 `.param` を `params/tuned/` に保存 |
 | ログ | 受け入れ走行ログの外部保存先を記録 |
 
@@ -790,7 +812,7 @@ params/tuned/YYYYMMDD_pixhawk6c_rover_tuned_01.param
 
 ## 11. 6/11時点で変更しないパラメータ
 
-以下は、6/11のログ解析結果から現時点では変更しない。
+以下は、6/11のログ解析結果から当時は変更しない判断だった。
 
 ```text
 ATC_SPEED_*
@@ -803,6 +825,7 @@ ATC_STR_RAT_*
 - S字TurnRateチェックで左右差が小さい。
 - Guided / Autoでも速度追従とWaypoint到達が確認できた。
 - いきなりゲインを変更するより、残課題であるLiDAR / OA / Compass / Battery failsafeの確認を優先する。
+- 2026-06-13にQuikTuneを実行し、`ATC_STR_RAT_*`、`CRUISE_*`、`ATC_SPEED_I` はQuikTune結果を採用候補として更新した。
 
 ---
 
@@ -879,6 +902,32 @@ logs/test_runs/20260613_06_quiktune_result.md
 
 公式 Rover QuikTune 手順を確認し、設定ファイル名、AUX割当、実行結果、保存前後のパラメータ差分を必ず記録する。
 
+### 13.1 2026-06-13 実行結果
+
+QuikTuneは完了し、保存成功。
+
+```text
+RTun: Tuning DONE
+RTun: tuning gains saved
+```
+
+主な変更:
+
+```text
+ATC_STR_RAT_FLTD  0.000 -> 2.000
+ATC_STR_RAT_FLTT  0.000 -> 2.000
+ATC_STR_RAT_FF    0.200 -> 0.364
+ATC_STR_RAT_P     0.200 -> 0.182
+ATC_STR_RAT_I     0.200 -> 0.182
+CRUISE_SPEED      2.000 -> 0.977
+CRUISE_THROTTLE   50.000 -> 45.015
+ATC_SPEED_I       0.200 -> 0.460
+```
+
+完了後は `Scripting1` を `Low` に戻す。`Mid` のままDisarmすると、停止中に `RTun: must be armed and moving to tune` が出続けることがある。
+
+次は `params/tuned/20260613_06_after_quiktune.param` を保存し、新ゲインでManual / Acro低速確認を行う。
+
 ## 参考リンク
 
 - ArduPilot Rover Tuning Process Instructions: <https://ardupilot.org/rover/docs/rover-tuning-process.html>
@@ -893,6 +942,8 @@ logs/test_runs/20260613_06_quiktune_result.md
 
 | 日付 | 内容 |
 | --- | --- |
+| 2026-06-13 | Guided中に障害物があると停止することを確認。`AVOID_ENABLE=0` では正しい方向へ進むため、反対方向へ行こうとする挙動はObject Avoidance側の介入または河原の石・地面反射の影響として記録 |
+| 2026-06-13 | Rover QuikTune完了。`RTun: Tuning DONE` と `RTun: tuning gains saved` を確認し、変更されたゲインを採用候補として記録 |
 | 2026-06-13 | Battery failsafe動作確認後、QuikTune準備へ進む方針に更新。`RC7_OPTION=153` は変更せず、Mission Planner Aux Function画面で1行を `Scripting1` に設定し、その行の `Mid` / `Low` ボタンで開始/中止する方針 |
 | 2026-06-13 | GCS側Auto-stopは不要として不採用。障害物前停止はArduPilot Simple Object Avoidance、退避はManual / Hold / Disarmで扱う |
 | 2026-06-13 | 障害物なしのRTL / SmartRTLは成功。RTL / SmartRTL中の障害物停止精度は似た傾向で保証できないため、どちらも障害物停止手段としては扱わない方針に更新 |
