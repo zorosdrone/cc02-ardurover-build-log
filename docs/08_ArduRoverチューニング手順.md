@@ -715,7 +715,7 @@ SmartRTL
 - Simple Object AvoidanceのAcro低速停止確認は通過扱い。
 - `OA_TYPE=0` のSimple Object Avoidanceを、現時点のLiDAR障害物停止方針として採用する。
 - BendyRulerは引き続き保留し、Auto / Guidedでの障害物回避確認へはまだ進めない。
-- 次はRTL / SmartRTL、Battery failsafe、GCS側Auto-stopの必要性確認へ進む。
+- この時点ではRTL / SmartRTL、Battery failsafe、GCS側Auto-stopの必要性確認へ進む判断だったが、これらは2026-06-13中に確認・判断済み。
 
 推奨記録名:
 
@@ -829,18 +829,29 @@ ATC_STR_RAT_*
 
 ---
 
-## 12. 次回の最優先作業
+## 12. 2026-06-13終了時点の次回候補
 
-2026-06-13にAcro低速での障害物停止再現、短距離RTLでHomeへ戻れること、障害物なしのSmartRTL経路復帰を確認した。一方で、RTL / SmartRTL中に障害物を置いた場合、LiDAR / Proximityの認識はあるものの、停止するかどうかの精度は似た傾向で、停止保証としては扱えない。GCS側Auto-stopは不要として採用しない。次回は障害物ありのRTL / SmartRTLを停止手段として扱わず、Battery failsafeと障害物接触時の停止手段を優先して確認する。
+2026-06-13の屋外低速チューニングは終了扱い。QuikTune、Battery failsafe、RTL短距離、SmartRTL障害物なし、Guided障害物停止、Simple Object Avoidanceを確認済み。
+
+本日の通常運用向け終了版:
 
 ```text
-1. Compass PreArm警告が再発しないか確認
-2. 長時間走行前にBattery実測電圧とMission Planner表示を比較し、電圧倍率の差を再確認する
-3. Simple Object Avoidance設定が再起動後も残っているか確認
-4. RTL / SmartRTL中に障害物へ接触した場合の退避手順を確認する
-5. GCS側Auto-stopは使わず、ArduPilot Simple Object Avoidanceを主な障害物前停止手段にする
-6. RTL / SmartRTLは障害物がない経路だけで使う
-7. BendyRulerは必要性が出るまで保留する
+params/tuned/20260613_pixhawk6c_rover_tuned_01.param
+```
+
+OA_TYPE=1 / BendyRuler実験版:
+
+```text
+params/tuned/20260613_08_oa_type1_bendyruler_test.param
+```
+
+```text
+1. 終了版でManual / Hold / Acro低速を短く再確認
+2. 必要なら `RTUN_ENABLE=0` の通常運用版を別名保存
+3. Compass PreArm警告が再発しないか確認
+4. 長時間走行前にBattery実測電圧とMission Planner表示を比較
+5. `AVOID_BACKUP_SPD=0.2` の停止後バックを平坦地で確認
+6. BendyRulerは石の少ない平坦地でのみ再評価
 ```
 
 補足:
@@ -851,17 +862,10 @@ ATC_STR_RAT_*
 
 の確認では、RTL / SmartRTL中にも `RFND` / `PRX` が記録され、近距離障害物はある程度認識されていた。ただし、近距離認識時に必ず停止するわけではなく、RTLとSmartRTLで停止精度は似た傾向だったため、RTL / SmartRTL中の障害物停止保証としては扱わない。
 
-推奨ログ名:
+本日の終了まとめ:
 
 ```text
-20260613_04_battery_failsafe_stop_procedure
-```
-
-推奨保存先:
-
-```text
-logs/test_runs/20260613_04_battery_failsafe_stop_procedure.md
-params/tuned/20260613_04_after_battery_failsafe_stop_procedure.param
+logs/test_runs/20260613_99_end_of_day_tuning_summary.md
 ```
 
 ---
@@ -870,7 +874,7 @@ params/tuned/20260613_04_after_battery_failsafe_stop_procedure.param
 
 RoverにはLuaによる `rover-quicktune.lua` があり、手動チューニングの補助として使える。
 
-2026-06-13時点では、Acro低速、Guided / Auto、RTL、SmartRTL障害物なし、Simple Object Avoidance、Battery failsafeの確認が進んだため、QuikTune準備へ進んでよい。ただし、実走開始前に次を確認する。
+2026-06-13にQuikTuneを実行し、`RTun: Tuning DONE` と `RTun: tuning gains saved` を確認済み。以下は再実行する場合の確認事項として扱う。
 
 - Lua Scriptsを有効化する。
 - `rover-quicktune.lua` をSDカード `APM/scripts` に配置する。
@@ -926,7 +930,7 @@ ATC_SPEED_I       0.200 -> 0.460
 
 完了後は `Scripting1` を `Low` に戻す。`Mid` のままDisarmすると、停止中に `RTun: must be armed and moving to tune` が出続けることがある。
 
-次は `params/tuned/20260613_06_after_quiktune.param` を保存し、新ゲインでManual / Acro低速確認を行う。
+`params/tuned/20260613_06_after_quiktune.param` は保存済み。通常運用向けの終了版は `params/tuned/20260613_pixhawk6c_rover_tuned_01.param` とする。
 
 ## 参考リンク
 

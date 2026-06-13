@@ -24,12 +24,36 @@ params/tuned/20260610_after_acro_speed_check.param
 
 | 日付 | ファイル | 機体状態 | 概要 |
 | --- | --- | --- | --- |
+| 2026-06-13 | `params/tuned/20260613_pixhawk6c_rover_tuned_01.param` | 2026-06-13チューニング終了版 | QuikTune後、通常運用向け。`OA_TYPE=0`。 |
+| 2026-06-13 | `params/tuned/20260613_08_oa_type1_bendyruler_test.param` | BendyRuler実験版 | `OA_TYPE=1`、小回り回避実験用。通常運用正本とは分ける。 |
+| 2026-06-13 | `params/tuned/20260613_06_after_quiktune.param` | QuikTune直後 | `RTun: Tuning DONE` / `tuning gains saved` 後。 |
 | 2026-06-10 | `params/tuned/20260610_before_tune.param` | Pixhawk 6C Mini換装後 / チューニング前 | 現在のチューニング前ベースライン。このファイルは上書きしない。 |
 | 2026-06-09 | `params/after_fc_replace/20260609_pixhawk6c_indoor_manual_ch2_ch5_ok.param` | 屋内Manual確認時 | 2026-06-10版の直前参照。 |
 | 2026-06-08 | `params/after_fc_replace/20260608__pixhawk6c_ardurover_initial.param` | ArduRover初期書き込み後 | 初期状態の参照。 |
 | 2026-06-07 | `params/before_fc_replace/20260607_before_fc_replace.param` | Pixhawk 2.4.8Pro / 換装前 | 換装前の正本。6C Miniへ丸コピーしない。 |
 
-## 2026-06-10 現在値
+## 2026-06-13 終了時採用値
+
+`params/tuned/20260613_pixhawk6c_rover_tuned_01.param` から抜粋。
+
+| 分野 | パラメータ | 値 | 記録 / 判断 |
+| --- | --- | --- | --- |
+| Arming | `ARMING_CHECK` / `ARMING_MAGTHRESH` | `1` / `100` | PreArm維持。磁場警告の一時緩和候補は`150`。 |
+| Compass | `COMPASS_ENABLE` / `COMPASS_EXTERNAL` / `COMPASS_ORIENT` | `1` / `1` / `6` | M10 IST8310。`Yaw270`。 |
+| Battery FS | `BATT_LOW_VOLT` / `BATT_CRT_VOLT` | `10.8` / `10.2` | 動作確認成功。 |
+| Battery FS | `BATT_FS_LOW_ACT` / `BATT_FS_CRT_ACT` | `1` / `2` | Low=RTL、Critical=Hold。 |
+| RC map | `RCMAP_ROLL` / `RCMAP_THROTTLE` | `4` / `2` | 左スティック左右をステアリング入力に変更。 |
+| Mode | `MODE1/2/5` | `4` | Hold。 |
+| Mode | `MODE3/4` | `0` | Manual。 |
+| Mode | `MODE6` | `1` | Acro。 |
+| Speed | `CRUISE_SPEED` / `CRUISE_THROTTLE` | `0.9776623` / `45` | QuikTune後。 |
+| Speed | `ATC_SPEED_P/I/D/FF` | `0.4604364 / 0.4604364 / 0 / 0` | QuikTune後。 |
+| Steering tune | `ATC_STR_RAT_FF/P/I/D` | `0.3646377 / 0.1823188 / 0.1823188 / 0` | QuikTune後。 |
+| Simple OA | `OA_TYPE` / `PRX1_TYPE` / `AVOID_ENABLE` | `0` / `4` / `7` | 通常運用。Guided中の障害物停止を確認済み。 |
+| Simple OA | `AVOID_MARGIN` / `AVOID_BACKUP_SPD` | `2` / `0` | 停止重視。バックは未採用。 |
+| QuikTune | `SCR_ENABLE` / `RTUN_ENABLE` | `1` / `1` | 再実行しない時は`Scripting1=Low`。 |
+
+## 2026-06-10 ベースライン値
 
 `params/tuned/20260610_before_tune.param` から抜粋。
 
@@ -97,6 +121,8 @@ params/tuned/20260610_after_acro_speed_check.param
 | Speed確認後 | `params/tuned/20260610_after_acro_speed_check.param` | `CRUISE_*`、`ATC_SPEED_*`、`ATC_ACCEL_MAX` |
 | Turn Rate確認後 | `params/tuned/20260610_after_turn_rate_check.param` | `ACRO_TURN_RATE`、`ATC_STR_RAT_*`、`ATC_TURN_MAX_G` |
 | 初回Auto/Guided確認後 | `params/tuned/20260610_after_guided_auto_check.param` | `WP_SPEED`、`WP_RADIUS`、`PSC_*`、Compass/GPS関連 |
+| 2026-06-13チューニング終了版 | `params/tuned/20260613_pixhawk6c_rover_tuned_01.param` | QuikTune後の通常運用向け。`OA_TYPE=0` |
+| BendyRuler実験版 | `params/tuned/20260613_08_oa_type1_bendyruler_test.param` | `OA_TYPE=1`。通常運用版とは分ける |
 
 ## 記録ルール
 
@@ -109,4 +135,5 @@ params/tuned/20260610_after_acro_speed_check.param
 
 | 日付 | 内容 |
 | --- | --- |
+| 2026-06-13 | QuikTune完了後の通常運用向け終了版 `params/tuned/20260613_pixhawk6c_rover_tuned_01.param` と、`OA_TYPE=1` 実験版を追記。 |
 | 2026-06-10 | `params/tuned/20260610_before_tune.param` を現在正本として整理。旧候補値との矛盾、次に保存するパラメータ、記録項目を追加。 |
