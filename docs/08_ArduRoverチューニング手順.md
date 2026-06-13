@@ -212,7 +212,7 @@ params/tuned/20260611_03_acro_low_speed_check.param
 | スロットル / ESC | `MAIN 3`, `SERVO3_FUNCTION=70` |
 | RC入力 | ステアリング `RC1`, スロットル `RC2` |
 | モード切替 | `MODE_CH=5` |
-| GPS / Compass | 暫定M10 GPSを `GPS1` 10ピンに接続 |
+| GPS / Compass | Rover向けに追加購入したM10 GPSを `GPS1` 10ピンに接続 |
 | LiDAR | Benewake TF-Luna, `TELEM2`, `SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115` |
 | Raspberry Pi / MAVLink | `TELEM1`, `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921` |
 | 電源モジュール | PM02 |

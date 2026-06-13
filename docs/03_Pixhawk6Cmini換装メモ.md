@@ -27,7 +27,8 @@ Pixhawk系は ArduPilot / PX4 で使われるオープンなFCハードウェア
 ## 換装先
 
 - Pixhawk 6C mini
-- GPSは現行M8Nを流用する方針
+- GPSはRover向けに追加購入したM10 GPSを `GPS1` 10ピンで使う
+- 旧M8N GPSの `GPS2` 流用は、`No GPS` 未解決のため中止
 - 6C mini対応のGPS一体型 Safety / Buzzer / LED モジュールには変更しない方針
 
 ## 重要な前提
@@ -66,7 +67,7 @@ Pixhawk系は ArduPilot / PX4 で使われるオープンなFCハードウェア
 
 つまり、GPS測位はUART、外部コンパスはI2Cで別配線になっている。
 
-Pixhawk 6C miniへ流用する場合は、以下のように考える。
+Pixhawk 6C miniへ旧M8Nを流用する場合は、当時は以下のように考えていた。
 
 ```text
 現行M8N GPS
@@ -76,7 +77,8 @@ Pixhawk 6C miniへ流用する場合は、以下のように考える。
   Pixhawk 6C mini の GPS2 6ピンへ変換接続
 ```
 
-Pixhawk 6C miniの`GPS2`は6ピン対応のため、現行M8NのGPS UARTとCompass I2Cを1本の6ピン変換ケーブルにまとめる方針にする。
+Pixhawk 6C miniの`GPS2`は6ピン対応のため、旧M8NのGPS UARTとCompass I2Cを1本の6ピン変換ケーブルにまとめる方針だった。
+ただし、2026-06-12時点ではM10 GPSをRover向けに追加購入して採用したため、この旧M8N流用作業は中止する。
 
 ```text
 GPS2 6ピンで使う信号
@@ -98,7 +100,7 @@ GPS2 6ピンで使う信号
 
 Pixhawk 6C miniには、旧Pixhawk Pro / 2.4.8系のような独立Buzzerポートがない。
 
-6C mini世代では、Buzzer / Safety Button / LED がGPSモジュール側に統合される構成が一般的。しかし今回はGPSを現行M8Nから変えない方針のため、BuzzerとSafety Buttonは標準構成では使わない前提にする。
+6C mini世代では、Buzzer / Safety Button / LED がGPSモジュール側に統合される構成が一般的。現在はM10 GPSを採用するが、Safety / Buzzer / LED統合機能は使わず、BuzzerとSafety Buttonは標準構成では使わない前提にする。
 
 ## Buzzerが無い場合の代替
 
@@ -255,7 +257,8 @@ Buzzer / Safety Buttonなし運用を補うため、`rover-gcs` に以下を追�
 
 ## 配線方針
 
-GPSは現行M8Nを流用。
+現在のGPSはRover向けに追加購入したM10 GPSを `GPS1` 10ピンへ接続する。
+旧M8N GPS2流用は中止し、以下のM8N変換方針は履歴として残す。
 
 ```text
 現行M8N GPS
@@ -297,13 +300,13 @@ Pixhawk 6C MiniではSERIAL4が物理GPS2に対応するため、LiDARには使�
 推奨:
   Raspberry Pi / MAVLink -> TELEM1
   LiDAR / RangeFinder    -> TELEM2
-  M8N GPS + Compass      -> GPS2
+  M10 GPS + Compass      -> GPS1
 ```
 
 ## 結論
 
-- 旧M8Nの`GPS2`流用は`No GPS`で保留する。
-- 現在はM10 GPSを`GPS1` 10ピンへ接続し、屋外`3D Fix`まで確認済み。2026-06-12にGPSモジュールとして採用。
+- 旧M8Nの`GPS2`流用は`No GPS`未解決のため中止する。
+- 現在はRover向けに追加購入したM10 GPSを`GPS1` 10ピンへ接続し、屋外`3D Fix`まで確認済み。2026-06-12にGPSモジュールとして採用。
 - LiDAR / RangeFinderは`TELEM2`へ移行済み。現在値は`SERIAL2_PROTOCOL=9`, `SERIAL2_BAUD=115`。
 - Raspberry Pi / MAVLinkは`TELEM1`へ移行済み。現在値は`SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=921`。
 - Buzzerは使わない。
