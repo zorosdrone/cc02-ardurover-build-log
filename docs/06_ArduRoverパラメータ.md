@@ -56,8 +56,8 @@ params/tuned/20260610_after_acro_speed_check.param
 | Battery | `BATT_VOLT_MULT` | `18.62` | 過去文書の`18.182`と差分あり。走行前に実測で再確認する。 |
 | Battery | `BATT_AMP_PERVLT` | `36.36` | 電流表示は実負荷で確認する。 |
 | Battery | `BATT_CAPACITY` | `2200` | 3S 2200mAh。 |
-| Battery FS | `BATT_LOW_VOLT` / `BATT_CRT_VOLT` | `0` / `0` | 未設定。初期試験は短時間・手動監視。運用前に設定方針を決める。 |
-| Battery FS | `BATT_FS_LOW_ACT` / `BATT_FS_CRT_ACT` | `0` / `0` | 自動動作なし。 |
+| Battery FS | `BATT_LOW_VOLT` / `BATT_CRT_VOLT` | `10.8` / `10.2` | 3S LiPo用。2026-06-13に動作確認成功。 |
+| Battery FS | `BATT_FS_LOW_ACT` / `BATT_FS_CRT_ACT` | `1` / `2` | Low=RTL、Critical=Hold。SmartRTLは障害物停止保証として扱わないため不採用。 |
 | RC FS | `FS_THR_ENABLE` / `FS_THR_VALUE` | `1` / `910` | タイヤ浮かせで検出と復帰を確認する。 |
 | GCS FS | `FS_GCS_ENABLE` | `0` | GCS依存運用なら要検討。 |
 | Speed | `CRUISE_SPEED` / `CRUISE_THROTTLE` | `2` / `50` | 初回屋外では速い可能性。低速確認を優先。 |
@@ -82,7 +82,7 @@ params/tuned/20260610_after_acro_speed_check.param
 | `RNGFND1_MAX_CM` | `200`候補 | `700` | GCS表示、Auto-stop閾値、屋外反射条件で決める。 |
 | Compass | `Compass not calibrated`記録あり | キャリブレーション値あり、`COMPASS_ENABLE=0` | 屋内用一時無効。屋外搭載状態で有効化しPreArm確認する。 |
 | Compass mast | マスト長変更前の校正値 | マスト長変更後の校正未実施 | `20260610_before_compass_mast_cal.param` と `20260610_after_compass_mast_cal.param` を保存する。 |
-| Battery failsafe | 旧FCは低電圧値あり | 現在は電圧しきい値0、自動動作なし | 初期試験は手動監視。運用前に設定する。 |
+| Battery failsafe | 旧FCは低電圧値あり | `10.8` / `10.2`, Low=RTL, Critical=Hold | 2026-06-13に設定・動作確認成功。 |
 | Acro | 手順上必要 | 未割当 | 重複Hold位置へ一時割当する。 |
 
 ## 次に保存するパラメータ
