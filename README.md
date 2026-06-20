@@ -14,7 +14,7 @@
 - Simple Object Avoidance確認済み: Acro低速停止、Guided中の障害物停止
 - RTL / SmartRTL確認済み。ただしRTL / SmartRTL中のLiDARは停止保証として扱わない
 
-詳細は [現在状況](docs/01_現在状況.md) と [チューニングログ](docs/09_チューニングログ.md) を参照してください。
+詳細は [現在状況](docs/01_現在状況.md) と [チューニングログ](docs/02_チューニング/09_チューニングログ.md) を参照してください。
 
 ## 目的
 
@@ -110,20 +110,20 @@ Git LFS対象:
 
 ### FC換装
 
-- [FC換装計画](docs/02_FC換装計画.md)
-- [Pixhawk 6C mini換装メモ](docs/03_Pixhawk6Cmini換装メモ.md)
-- [配線](docs/04_配線.md)
-- [ArduRoverインストール設定手順](docs/05_ArduRoverインストール設定手順.md)
+- [FC換装計画](docs/01_FC換装/02_FC換装計画.md)
+- [Pixhawk 6C mini換装メモ](docs/01_FC換装/03_Pixhawk6Cmini換装メモ.md)
+- [配線](docs/01_FC換装/04_配線.md)
+- [ArduRoverインストール設定手順](docs/01_FC換装/05_ArduRoverインストール設定手順.md)
 
 ### 換装後確認
 
-- [ArduRoverパラメータ](docs/06_ArduRoverパラメータ.md)
-- [走行試験](docs/07_走行試験.md)
+- [ArduRoverパラメータ](docs/01_FC換装/06_ArduRoverパラメータ.md)
+- [走行試験](docs/01_FC換装/07_走行試験.md)
 
 ### チューニング
 
-- [ArduRoverチューニング手順](docs/08_ArduRoverチューニング手順.md)
-- [チューニングログ](docs/09_チューニングログ.md)
+- [ArduRoverチューニング手順](docs/02_チューニング/08_ArduRoverチューニング手順.md)
+- [チューニングログ](docs/02_チューニング/09_チューニングログ.md)
 
 ### 障害物回避 / Lua
 
