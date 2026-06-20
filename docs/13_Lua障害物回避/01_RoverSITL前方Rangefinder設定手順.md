@@ -152,14 +152,21 @@ script /tmp/post-locations.scr
 
 ```text
 module load graph
-graph RANGEFINDER.distance
+graph DISTANCE_SENSOR.current_distance
 ```
+
+2026-06-20のローカル実行では、`DISTANCE_SENSOR.current_distance`で距離グラフが表示されることを確認した。`current_distance`の単位はcmである。
+
+Luaの`distance_cm_orient(0)`もcmなので、両者は単位変換せず比較できる。Lua側でm表示した値と比較する場合は、`DISTANCE_SENSOR.current_distance * 0.01`としてmへ変換する。
+
+公式資料などで使われる`RANGEFINDER.distance`がこの接続で表示されない場合は、実行確認済みの`DISTANCE_SENSOR.current_distance`を使用する。
 
 合格条件:
 
 - ポストへ向けて接近すると距離が減少する
 - 旋回してレイがポストを外すと最大距離相当へ戻る
 - ポスト間では検出しないことがある
+- `current_distance`がポストへの接近に合わせてcm単位で減少する
 - 距離値が飛ぶ場合は向きとスケールを再確認する
 
 SITLのポストは半径1 m、格子間隔10 mで、交差判定レイは200 mである。連続した壁ではない。
@@ -288,12 +295,12 @@ params/tuned/YYYYMMDD_01_before_lua_avoid_test.param
 
 | ID | 試験 | 合格条件 |
 | --- | --- | --- |
-| RF-01 | SITL距離受信 | `RANGEFINDER.distance`が更新される |
+| RF-01 | SITL距離受信 | `DISTANCE_SENSOR.current_distance`がcm単位で更新される |
 | RF-02 | ポストへ接近 | 距離が連続的に減る |
 | RF-03 | その場旋回 | ポストを外すと最大距離へ戻る |
 | RF-04 | ポスト間 | 未検出になり得ることを確認 |
 | LUA-01 | Lua起動 | 起動メッセージが1回出る |
-| LUA-02 | API単位 | Luaのm表示とMAVProxyが一致する |
+| LUA-02 | API単位 | Luaのcm値が`DISTANCE_SENSOR.current_distance`と一致する |
 | LUA-03 | センサー無効 | `no data`を検出する |
 | SAFE-01 | Lua停止 | 停止距離より手前で停止する |
 | SAFE-02 | Lua異常 | 走行継続ではなく停止側へ倒れる |
