@@ -101,7 +101,7 @@ SITLのセンサー設定と実機TF-Lunaの設定は別物である。SITL用�
 
 - ArduRover 4.6.3のSITLを仮想バリア地点で起動する
 - 前方1点Rangefinderを設定する
-- MAVProxyの`RANGEFINDER.distance`で距離を確認する
+- MAVProxyの`DISTANCE_SENSOR.current_distance`でcm単位の距離を確認する
 - ポスト間では未検出になる制約を記録する
 
 ### フェーズ2: Lua監視
@@ -160,7 +160,7 @@ QuikTune用スクリプトとの同時実行も避ける。新しいLua試験用
 ### SITL
 
 - 前方ポストへの接近で距離が連続的に減る
-- Lua表示と`RANGEFINDER.distance`が一致する
+- Luaのcm値と`DISTANCE_SENSOR.current_distance`が一致する
 - 停止距離より手前で停止する
 - センサー喪失、Luaエラー、タイムアウトで停止保持する
 - 20回以上の反復でポストへ衝突しない

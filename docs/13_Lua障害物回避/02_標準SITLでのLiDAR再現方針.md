@@ -80,7 +80,7 @@ RNGFND1_SCALING = 10
 RNGFND1_PIN     = 0
 ```
 
-再起動後、`RANGEFINDER.distance`をMAVProxyでグラフ表示できます。([ArduPilot.org][2])
+公式資料では再起動後のRangefinder値をMAVProxyで確認できる。現在のローカル環境では、`graph DISTANCE_SENSOR.current_distance`でcm単位の距離グラフが表示されることを確認済みである。([ArduPilot.org][2])
 
 ArduRover 4.6.3では距離範囲のパラメータ名だけが異なります。
 
@@ -351,9 +351,9 @@ SITL内蔵ポスト
 未確認なのは「実現できるか」ではなく、**手順どおりに実行した際に、現在のローカル環境で期待する距離値が出るかという実行確認**です。最初の合否判定は次の3点で十分です。
 
 ```text
-1. RANGEFINDER.distanceが0以外で更新される
+1. DISTANCE_SENSOR.current_distanceがcm単位で更新される
 2. ポストへ接近すると値が減少する
-3. Luaのdistance_cm_orient(0)と同じ値になる
+3. Luaのdistance_cm_orient(0)と同じcm値になる
 ```
 
 この3点を通過すれば、Webotsを使わずにLua障害物回避の主要開発を進められます。
