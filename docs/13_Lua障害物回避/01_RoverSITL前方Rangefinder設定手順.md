@@ -13,6 +13,39 @@ ArduPilot Rover SITLの内蔵機能だけで、前方へ1本の測距レイを�
 > [!IMPORTANT]
 > 公式記事には「単体SITLの内蔵バリアを前方1点Rangefinderで測る」という一連の手順はない。本書は、公式WikiのアナログRangefinder設定、360度LiDAR用の仮想バリア地点、および`SIM_Aircraft.cpp` / `SITL.cpp`の水平Rangefinder実装を組み合わせた検証手順である。測距値を実行確認してからLua制御へ進む。
 
+## クイック起動コマンド
+
+ArduPilotリポジトリのルートでSITLを起動する。
+
+```bash
+Tools/autotest/sim_vehicle.py -v Rover --console --map \
+  -l 51.8752066,14.6487840,54.15,0
+```
+
+MAVProxyコンソールで、距離確認用の表示を開く。
+
+```text
+script /tmp/post-locations.scr
+module load graph
+graph DISTANCE_SENSOR.current_distance
+```
+
+前方Rangefinder設定が未設定、または`-w`でSITLパラメータを消した直後だけ、MAVProxyコンソールで次を実行して再起動する。
+
+```text
+param set SIM_SONAR_ROT 0
+param set SIM_SONAR_SCALE 10
+param set RNGFND1_TYPE 1
+param set RNGFND1_PIN 0
+param set RNGFND1_SCALING 10
+param set RNGFND1_MIN_CM 0
+param set RNGFND1_MAX_CM 5000
+param set RNGFND1_ORIENT 0
+reboot
+```
+
+`--serial5=sim:ld06`は付けない。既存SITLパラメータを消す必要がある場合だけ、起動コマンドに`-w`を一時的に付ける。
+
 ## 1. 実機設定とSITL設定を分ける
 
 CC-02実機のTF-Luna設定:
@@ -102,10 +135,12 @@ reboot
 | `RNGFND1_PIN` | 0 | SITL仮想アナログ入力 |
 | `RNGFND1_SCALING` | 10 | アナログ電圧から距離へのm/Vスケール |
 | `RNGFND1_MIN_CM` | 0 | 最小距離0 cm |
-| `RNGFND1_MAX_CM` | 5000 | 最大距離50 m |
+| `RNGFND1_MAX_CM` | 5000 | 最大距離50 m。グラフの縦軸上限ではなく、Rangefinderとして扱う有効距離の上限 |
 | `RNGFND1_ORIENT` | 0 | ArduPilot側で前向きとして登録 |
 
 `SIM_SONAR_ROT`は測距レイの物理方向、`RNGFND1_ORIENT`はArduPilotが扱うセンサー方向であり、両方を0にする。
+
+`RNGFND1_MAX_CM`はMAVProxyグラフの縦軸上限ではない。`DISTANCE_SENSOR.current_distance`では、ポスト未検出時や範囲外相当で5000 cm付近が表示されることがある。グラフを見やすくしたい場合は、値を拡大表示するか、グラフをクリアしてポスト接近時の変化を見る。
 
 再起動後に確認する。
 
@@ -148,6 +183,91 @@ script /tmp/post-locations.scr
 3. 数秒待って再実行する
 4. WSL内のMAVProxyから実行しているか確認する
 
+### 5.1 Mission Plannerへ仮想ポストを表示
+
+`/tmp/post-locations.scr`は、次のようなMAVProxy地図用コマンドで構成されている。
+
+```text
+map circle <緯度> <経度> 1 blue
+```
+
+Mission Plannerはこの`.scr`を直接読み込めないため、表示専用のKMLオーバーレイへ変換する。SITL起動中にWSLで実行する。
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+import math
+
+src = Path("/tmp/post-locations.scr")
+dst = Path.home() / "ardupilot" / "sitl-posts.kml"
+
+out = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
+    '<name>ArduPilot SITL Posts</name>',
+    '<Style id="post"><LineStyle><color>ff0000ff</color><width>2</width></LineStyle>'
+    '<PolyStyle><color>500000ff</color></PolyStyle></Style>',
+]
+
+count = 0
+for line in src.read_text().splitlines():
+    parts = line.split()
+    if len(parts) >= 6 and parts[:2] == ["map", "circle"]:
+        lat, lon, radius = map(float, parts[2:5])
+        coords = []
+        for i in range(25):
+            angle = 2 * math.pi * i / 24
+            north = radius * math.cos(angle)
+            east = radius * math.sin(angle)
+            lat2 = lat + north / 111320
+            lon2 = lon + east / (
+                111320 * math.cos(math.radians(lat))
+            )
+            coords.append(f"{lon2:.9f},{lat2:.9f},0")
+
+        count += 1
+        out.append(
+            f'<Placemark><name>Post {count}</name><styleUrl>#post</styleUrl>'
+            '<Polygon><outerBoundaryIs><LinearRing><coordinates>'
+            + " ".join(coords)
+            + '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>'
+        )
+
+out.append("</Document></kml>")
+dst.write_text("\n".join(out), encoding="utf-8")
+print(f"Created {dst}: {count} posts")
+PY
+```
+
+成功時は次のように表示される。
+
+```text
+Created /home/ardupilot/ardupilot/sitl-posts.kml: 217 posts
+```
+
+`posts`の数は、SITLのバージョン、起動地点、生成された`/tmp/post-locations.scr`の内容で変わる。ここでは0件でないことと、Mission Plannerで読み込めるKMLが作成されたことを確認する。
+
+Windowsのエクスプローラーで保存先を開く。
+
+```bash
+explorer.exe "$(wslpath -w ~/ardupilot)"
+```
+
+Mission PlannerでKMLを読み込む手順は採用しない。現行UIでは`FLIGHT PLAN`の地図右クリックからKMLオーバーレイを読み込む操作が確認できず、この用途では機能しない。
+
+仮想ポストの表示確認は、まずMAVProxyの地図で行う。
+
+```text
+script /tmp/post-locations.scr
+```
+
+生成した`sitl-posts.kml`は、Mission Plannerへ読み込むためではなく、Google EarthなどのKMLビューアでポスト位置を確認したり、ローカル証跡として保存したりするために使う。
+
+> [!IMPORTANT]
+> このKMLは表示専用データである。WaypointやFenceとして機体へ`WRITE`しない。
+
+表示を更新する場合は、最新の`/tmp/post-locations.scr`から同じコマンドでKMLを再生成する。
+
 ## 6. MAVProxyで距離を確認
 
 ```text
@@ -167,6 +287,25 @@ Luaの`distance_cm_orient(0)`もcmなので、両者は単位変換せず比較�
 
 この例では、MAVProxyマップ上に内蔵ポストが表示され、`DISTANCE_SENSOR.current_distance`のグラフがcm単位で変化している。車体の向きと測距レイがポストを捉えているかを、マップとグラフを並べて確認する。
 
+### 6.1 近距離を見やすくする
+
+MAVProxyの`graph`コマンドには、確認できる範囲では縦軸を数値指定するサブコマンドがない。`RNGFND1_MAX_CM`もグラフ縦軸の設定ではない。
+
+近距離確認では、グラフウィンドウ側のズーム操作で0～1000 cm付近を拡大する。数値を小さく見たい場合はm単位の式を別グラフで開く。
+
+```text
+graph DISTANCE_SENSOR.current_distance*0.01
+```
+
+時間幅だけを狭める場合は、グラフを開く前に次を設定する。
+
+```text
+graph timespan 10
+graph DISTANCE_SENSOR.current_distance
+```
+
+近距離で正確に測れているかは、グラフの形だけで判断しない。ポストへ真正面から接近し、`current_distance`が実距離に合わせて連続的に減ること、Luaの`distance_cm_orient(0)`と同じcm値になることを確認する。
+
 合格条件:
 
 - ポストへ向けて接近すると距離が減少する
@@ -174,6 +313,7 @@ Luaの`distance_cm_orient(0)`もcmなので、両者は単位変換せず比較�
 - ポスト間では検出しないことがある
 - `current_distance`がポストへの接近に合わせてcm単位で減少する
 - 距離値が飛ぶ場合は向きとスケールを再確認する
+- `RNGFND1_MAX_CM`を下げても、`DISTANCE_SENSOR.current_distance`の表示値やグラフ縦軸がその値へ丸められるとは限らない
 
 SITLのポストは半径1 m、格子間隔10 mで、交差判定レイは200 mである。連続した壁ではない。
 
@@ -328,7 +468,7 @@ param show RNGFND1_MAX*
 
 ArduRover 4.6.3では`distance_cm_orient()`を使う。
 
-### 距離が常に50 m付近
+### 距離が常に5000 cm付近
 
 - レイがポストを通っているか
 - `SIM_SONAR_ROT=0`か
