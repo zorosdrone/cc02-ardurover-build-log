@@ -1,6 +1,6 @@
 # Lua障害物回避プロジェクト概要
 
-![CC-02 Lua障害物回避プロジェクト概要](images/プロジェクト概要.png)
+![CC-02 Lua障害物回避プロジェクト概要](images/cc02-lua-obstacle-avoidance-overview.png)
 
 更新日: 2026-06-20
 

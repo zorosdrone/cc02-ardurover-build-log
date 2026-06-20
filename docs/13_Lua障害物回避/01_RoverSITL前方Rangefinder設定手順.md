@@ -161,6 +161,12 @@ Luaの`distance_cm_orient(0)`もcmなので、両者は単位変換せず比較�
 
 公式資料などで使われる`RANGEFINDER.distance`がこの接続で表示されない場合は、実行確認済みの`DISTANCE_SENSOR.current_distance`を使用する。
 
+シミュレーターを正しく設定できた場合の表示例:
+
+![Rover SITL post map and DISTANCE_SENSOR graph](images/sitl-post-map-distance-sensor-graph.png)
+
+この例では、MAVProxyマップ上に内蔵ポストが表示され、`DISTANCE_SENSOR.current_distance`のグラフがcm単位で変化している。車体の向きと測距レイがポストを捉えているかを、マップとグラフを並べて確認する。
+
 合格条件:
 
 - ポストへ向けて接近すると距離が減少する
