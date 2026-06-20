@@ -2,13 +2,15 @@
 
 更新日: 2026-06-20
 
-基準バージョン: ArduRover 4.6.3
+基準バージョン: ArduRover 4.6.3（実機ファームウェアに合わせる）
 
 ## 目的
 
 ArduPilot Rover SITLの内蔵機能だけで、前方へ1本の測距レイを出す仮想Rangefinderを構成する。MAVProxyとLuaの両方で距離を確認し、CC-02用Lua障害物回避ロジックを実機投入前に検証できる状態にする。
 
 この手順では360度LiDARの`sim:ld06`を使用しない。
+
+実機に載せるLua障害物回避を前提にするため、SITLも実機ファームウェアと同じArduRover 4.6.3へ合わせる。他の開発メンバーが最新ArduPilotソースや4.7系以降で試す場合だけ、本書内の差分表に従って`RNGFND1_MIN` / `RNGFND1_MAX`と`distance_orient()`へ読み替える。
 
 > [!IMPORTANT]
 > 公式記事には「単体SITLの内蔵バリアを前方1点Rangefinderで測る」という一連の手順はない。本書は、公式WikiのアナログRangefinder設定、360度LiDAR用の仮想バリア地点、および`SIM_Aircraft.cpp` / `SITL.cpp`の水平Rangefinder実装を組み合わせた検証手順である。測距値を実行確認してからLua制御へ進む。
@@ -80,9 +82,9 @@ ArduPilotリポジトリのルートで実行する。
 git describe --tags --always --dirty
 ```
 
-この手順は`Rover-4.6.3`用である。
+この手順は`Rover-4.6.3`用である。実機ファームウェアが4.6.3なら、シミュレーションも同じ版へ合わせる。
 
-| 項目 | Rover-4.6.3 | master / 4.7系 |
+| 項目 | Rover-4.6.3（本手順の基準） | 最新ArduPilotソース / 4.7系以降 |
 | --- | --- | --- |
 | 最小距離 | `RNGFND1_MIN_CM`、cm | `RNGFND1_MIN`、m |
 | 最大距離 | `RNGFND1_MAX_CM`、cm | `RNGFND1_MAX`、m |
@@ -155,7 +157,7 @@ param show RNGFND1_MAX_CM
 param show RNGFND1_ORIENT
 ```
 
-### master / 4.7系を使う場合
+### 最新ArduPilotソース / 4.7系以降を使う場合
 
 距離パラメータだけをm単位へ差し替える。
 
@@ -164,7 +166,7 @@ param set RNGFND1_MIN 0
 param set RNGFND1_MAX 50
 ```
 
-`_CM`版とm版を混ぜない。
+`_CM`版とm版を混ぜない。チーム内で結果を比較する場合は、使用したArduPilotの版と、どちらのパラメータ名で設定したかを記録する。
 
 ## 5. 仮想ポストを地図へ表示
 
@@ -183,90 +185,11 @@ script /tmp/post-locations.scr
 3. 数秒待って再実行する
 4. WSL内のMAVProxyから実行しているか確認する
 
-### 5.1 Mission Plannerへ仮想ポストを表示
+### 5.1 KML表示補助
 
-`/tmp/post-locations.scr`は、次のようなMAVProxy地図用コマンドで構成されている。
+Mission PlannerでKMLを読み込む手順は採用しない。仮想ポストの確認はMAVProxyの地図表示を主手順とする。
 
-```text
-map circle <緯度> <経度> 1 blue
-```
-
-Mission Plannerはこの`.scr`を直接読み込めないため、表示専用のKMLオーバーレイへ変換する。SITL起動中にWSLで実行する。
-
-```bash
-python3 - <<'PY'
-from pathlib import Path
-import math
-
-src = Path("/tmp/post-locations.scr")
-dst = Path.home() / "ardupilot" / "sitl-posts.kml"
-
-out = [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
-    '<name>ArduPilot SITL Posts</name>',
-    '<Style id="post"><LineStyle><color>ff0000ff</color><width>2</width></LineStyle>'
-    '<PolyStyle><color>500000ff</color></PolyStyle></Style>',
-]
-
-count = 0
-for line in src.read_text().splitlines():
-    parts = line.split()
-    if len(parts) >= 6 and parts[:2] == ["map", "circle"]:
-        lat, lon, radius = map(float, parts[2:5])
-        coords = []
-        for i in range(25):
-            angle = 2 * math.pi * i / 24
-            north = radius * math.cos(angle)
-            east = radius * math.sin(angle)
-            lat2 = lat + north / 111320
-            lon2 = lon + east / (
-                111320 * math.cos(math.radians(lat))
-            )
-            coords.append(f"{lon2:.9f},{lat2:.9f},0")
-
-        count += 1
-        out.append(
-            f'<Placemark><name>Post {count}</name><styleUrl>#post</styleUrl>'
-            '<Polygon><outerBoundaryIs><LinearRing><coordinates>'
-            + " ".join(coords)
-            + '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>'
-        )
-
-out.append("</Document></kml>")
-dst.write_text("\n".join(out), encoding="utf-8")
-print(f"Created {dst}: {count} posts")
-PY
-```
-
-成功時は次のように表示される。
-
-```text
-Created /home/ardupilot/ardupilot/sitl-posts.kml: 217 posts
-```
-
-`posts`の数は、SITLのバージョン、起動地点、生成された`/tmp/post-locations.scr`の内容で変わる。ここでは0件でないことと、Mission Plannerで読み込めるKMLが作成されたことを確認する。
-
-Windowsのエクスプローラーで保存先を開く。
-
-```bash
-explorer.exe "$(wslpath -w ~/ardupilot)"
-```
-
-Mission PlannerでKMLを読み込む手順は採用しない。現行UIでは`FLIGHT PLAN`の地図右クリックからKMLオーバーレイを読み込む操作が確認できず、この用途では機能しない。
-
-仮想ポストの表示確認は、まずMAVProxyの地図で行う。
-
-```text
-script /tmp/post-locations.scr
-```
-
-生成した`sitl-posts.kml`は、Mission Plannerへ読み込むためではなく、Google EarthなどのKMLビューアでポスト位置を確認したり、ローカル証跡として保存したりするために使う。
-
-> [!IMPORTANT]
-> このKMLは表示専用データである。WaypointやFenceとして機体へ`WRITE`しない。
-
-表示を更新する場合は、最新の`/tmp/post-locations.scr`から同じコマンドでKMLを再生成する。
+Google EarthなどのKMLビューアでポスト位置を確認したい場合は、[/tmp/post-locations.scrをKMLへ変換する補助手順](05_仮想ポストKML表示補助.md)を参照する。
 
 ## 6. MAVProxyで距離を確認
 
@@ -359,7 +282,7 @@ return update, UPDATE_MS
 
 この確認用スクリプトは距離表示だけを行い、速度やモードを変更しない。
 
-master / 4.7系では、距離取得を次へ差し替える。
+最新ArduPilotソース / 4.7系以降では、距離取得を次へ差し替える。
 
 ```lua
 local distance_m = rangefinder:distance_orient(FRONT)
@@ -497,8 +420,8 @@ SERIAL2_BAUD = 115
 
 - [Lua障害物回避プロジェクト概要](README.md)
 - [現在状況](../01_現在状況.md)
-- [ArduRoverパラメータ](../06_ArduRoverパラメータ.md)
-- [チューニングログ](../09_チューニングログ.md)
+- [ArduRoverパラメータ](../01_FC換装/06_ArduRoverパラメータ.md)
+- [チューニングログ](../02_チューニング/09_チューニングログ.md)
 - [2026-06-13 Guided障害物停止確認](../../logs/test_runs/20260613_07_guided_obstacle_stop_check.md)
 
 ## 公式資料
