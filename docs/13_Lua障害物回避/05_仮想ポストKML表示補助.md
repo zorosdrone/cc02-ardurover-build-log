@@ -1,8 +1,8 @@
 # 仮想ポストKML表示補助
 
-更新日: 2026-06-20
+更新日: 2026-06-21
 
-対象: Rover SITL、`/tmp/post-locations.scr`、KML、Google EarthなどのKMLビューア
+対象: Rover SITL、`/tmp/post-locations.scr`、KML、Mission Planner KMLオーバーレイ、Google EarthなどのKMLビューア
 
 ## 目的
 
@@ -14,9 +14,11 @@ Rover SITLが生成する`/tmp/post-locations.scr`を、KMLビューアで確認
 script /tmp/post-locations.scr
 ```
 
-Mission PlannerでKMLを読み込む手順は採用しない。現行UIでは`FLIGHT PLAN`の地図右クリックからKMLオーバーレイを読み込む操作が確認できず、この用途では機能しない。
+Mission Plannerでは、`FLIGHT PLAN`の地図右クリックメニューからKMLオーバーレイとして表示できる。これは補助表示であり、ポストをWaypointやFenceとして機体へ書き込む手順ではない。
 
-生成した`sitl-posts.kml`は、Mission Plannerへ読み込むためではなく、Google EarthなどのKMLビューアでポスト位置を確認したり、ローカル証跡として保存したりするために使う。
+![Mission Planner KML overlay menu](images/mission-planner-kml-overlay-menu.png)
+
+生成した`sitl-posts.kml`は、Mission PlannerのKMLオーバーレイ、Google EarthなどのKMLビューア、またはローカル証跡として使う。
 
 > [!IMPORTANT]
 > このKMLは表示専用データである。WaypointやFenceとして機体へ`WRITE`しない。
@@ -91,7 +93,17 @@ Windowsのエクスプローラーで保存先を開く。
 explorer.exe "$(wslpath -w ~/ardupilot)"
 ```
 
-表示を更新する場合は、最新の`/tmp/post-locations.scr`から同じコマンドでKMLを再生成する。
+## Mission Plannerで表示する
+
+1. `FLIGHT PLAN`を開く
+2. 地図を右クリックする
+3. `マップツール`を開く
+4. `KMLオーバーレイ`を選ぶ
+5. `sitl-posts.kml`を選択する
+
+表示されるポストは、SITL内部の障害物位置を確認するための目安である。MAVProxyの`script /tmp/post-locations.scr`表示と、`DISTANCE_SENSOR.current_distance`の変化を主確認にする。
+
+表示を更新する場合は、最新の`/tmp/post-locations.scr`から同じコマンドでKMLを再生成し、Mission PlannerまたはKMLビューアで読み直す。
 
 ## 関連資料
 
