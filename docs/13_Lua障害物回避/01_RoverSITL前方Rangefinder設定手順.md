@@ -1,6 +1,6 @@
 # Rover SITL前方Rangefinder / Lua設定手順
 
-更新日: 2026-06-20
+更新日: 2026-06-21
 
 基準バージョン: ArduRover 4.6.3（実機ファームウェアに合わせる）
 
@@ -187,9 +187,9 @@ script /tmp/post-locations.scr
 
 ### 5.1 KML表示補助
 
-Mission PlannerでKMLを読み込む手順は採用しない。仮想ポストの確認はMAVProxyの地図表示を主手順とする。
+仮想ポストの確認はMAVProxyの`script /tmp/post-locations.scr`を主手順とする。
 
-Google EarthなどのKMLビューアでポスト位置を確認したい場合は、[/tmp/post-locations.scrをKMLへ変換する補助手順](05_仮想ポストKML表示補助.md)を参照する。
+Mission Plannerで位置関係を見たい場合は、`/tmp/post-locations.scr`をKMLへ変換し、KMLオーバーレイとして補助表示できる。手順と表示例は[仮想ポストKML表示補助](05_仮想ポストKML表示補助.md)を参照する。
 
 ## 6. MAVProxyで距離を確認
 

@@ -14,7 +14,7 @@
 - Simple Object Avoidance確認済み: Acro低速停止、Guided中の障害物停止
 - RTL / SmartRTL確認済み。ただしRTL / SmartRTL中のLiDARは停止保証として扱わない
 
-詳細は [現在状況](docs/01_現在状況.md) と [チューニングログ](docs/02_チューニング/09_チューニングログ.md) を参照してください。
+詳細は [現在状況](docs/01_現在状況.md) と [チューニングログ](docs/02_チューニング/09_チューニングログ.md) を参照してください。`Lua障害物回避`は、実機ファームウェアに合わせたArduRover 4.6.3 SITL手順を基準に、前方Rangefinderと仮想ポスト表示の検証を進めています。
 
 ## 目的
 
@@ -132,6 +132,7 @@ Git LFS対象:
 - [標準ArduRover SITLで前方LiDARを再現する方針](docs/13_Lua障害物回避/02_標準SITLでのLiDAR再現方針.md)
 - [LuaとC++独自モードの実装判断](docs/13_Lua障害物回避/03_LuaとC++の実装判断.md)
 - [Guided位置指定対応Lua障害物回避仕様書](docs/13_Lua障害物回避/04_Guided位置指定対応Lua障害物回避仕様書.md)
+- [仮想ポストKML表示補助](docs/13_Lua障害物回避/05_仮想ポストKML表示補助.md)
 
 ### 参照
 
