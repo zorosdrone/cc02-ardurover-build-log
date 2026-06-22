@@ -1,371 +1,348 @@
-# 標準ArduRover SITLで前方LiDARを再現する方針
+# 標準ArduRover SITLで前方LiDARによる障害物前停止を試す
 
-更新日: 2026-06-20
+更新日: 2026-06-22
 
-対象: ArduRover 4.6.3、MAVProxy、前方1点Rangefinder、Lua
+対象: 最新ArduPilotソース（`master`）、Rover SITL、MAVProxy、前方1点Rangefinder、標準Simple Object Avoidance
 
-参照: [rover-gcsのWebots連携ガイド](https://github.com/zorosdrone/rover-gcs/blob/main/docs/webots_setup.md)
-
-## 検討した疑問
-
-Webotsでは目的のシミュレーションを実現できているが、設定方法が複雑である。標準のArduRover SITLとMAVProxyの2Dマップだけで、前方LiDAR相当の距離取得とLua障害物回避の検証を再現できるか。
+この手順では、実機CC-02の前方TF-Luna 1台という構成に合わせ、SITLも前方1点Rangefinderだけを使用する。360度LiDARの`sim:ld06`は使用しない。Luaも使用しない。
 
 ## 結論
 
-**今回のプロジェクトは、標準のArduRover SITL＋MAVProxyの2Dマップだけで実現可能です。**
-
-Webots環境を完全に再現するわけではありませんが、目的である次の検証には十分です。
-
-* 前方1点LiDAR相当の距離取得
-* Luaからの距離監視
-* 警戒・減速・停止判定
-* センサー喪失時の停止
-* 後退・固定方向旋回・再確認からなる状態機械
-* 同一条件での反復テスト
-
-ただし、**実車に近い物理挙動や自由な障害物配置まで求める場合はWebotsが必要**です。
-
----
-
-## Webots環境と標準SITLの置き換え関係
-
-Webotsの技術文書では、距離情報が次の経路を通っています。
-
-```text
-WebotsのDistanceSensor
-        ↓
-DISTANCE_SENSORをUDP 14551へ送信
-        ↓
-MAVProxy独自モジュール webotsrf
-        ↓
-SITLのmasterへ再注入
-        ↓
-RNGFND1_TYPE=10（MAVLink）
-        ↓
-ArduPilotのRangefinder
-```
-
-Webotsで取得した距離は、そのままではSITLに入らないため、独自MAVProxyモジュールで`DISTANCE_SENSOR`を再送しています。これが現在の構成を複雑にしている主要部分です。([GitHub][1])
-
-標準SITLでは、この部分を次のように置き換えられます。
-
-```text
-SITL内蔵の仮想ポスト
-        ↓
-SITL内部の前方測距レイ
-        ↓
-仮想アナログRangefinder
-        ↓
-RNGFND1_TYPE=1
-        ↓
-ArduPilotのRangefinder
-        ↓
-Lua
-```
-
-つまり、Webots、UDP距離送信、`webotsrf.py`、WindowsとWSL間のIP設定、ファイアウォール設定が不要になります。
-
----
-
-## 実現可能と判断できる根拠
-
-### 1. 標準SITLはアナログRangefinderを公式にサポートしている
-
-ArduPilot公式資料には、SITL内蔵の仮想Rangefinderを次の設定で有効化する手順があります。
-
-```text
-SIM_SONAR_SCALE = 10
-RNGFND1_TYPE    = 1
-RNGFND1_SCALING = 10
-RNGFND1_PIN     = 0
-```
-
-公式資料では再起動後のRangefinder値をMAVProxyで確認できる。現在のローカル環境では、`graph DISTANCE_SENSOR.current_distance`でcm単位の距離グラフが表示されることを確認済みである。([ArduPilot.org][2])
-
-ArduRover 4.6.3では距離範囲のパラメータ名だけが異なります。
-
-```text
-RNGFND1_MIN_CM = 0
-RNGFND1_MAX_CM = 5000
-```
-
-現在作成されている設定手順は、このバージョン差を正しく分離しています。
-
----
-
-### 2. Roverでは水平Rangefinderが障害物センサーとして処理される
-
-ArduRover 4.6.3の`SIM_Aircraft.cpp`では、RoverまたはCopterでRangefinderが水平向きの場合、地面までの高度ではなく、障害物までの距離を取得する分岐があります。
-
-```cpp
-return sitl->measure_distance_at_angle_bf(
-    location,
-    sitl->sonar_rot.get() * 45
-);
-```
-
-コメントでも、水平Rangefinderを「distance to obstacles」として扱う実装だと明示されています。`SIM_SONAR_ROT=0`なら車体前方0度のレイになります。([GitHub][3])
-
-したがって、次の設定の組み合わせは論理的に成立します。
-
-```text
-SIM_SONAR_ROT    = 0
-RNGFND1_ORIENT   = 0
-```
-
-* `SIM_SONAR_ROT=0`：シミュレーター内の測距レイを前方にする
-* `RNGFND1_ORIENT=0`：取得したセンサーをArduPilot側でも前方として登録する
-
----
-
-### 3. 360度LiDAR用の仮想ポストを前方1点レイでも測定できる
-
-公式資料は、360度LiDARを仮想バリア地点で起動し、`post-locations.scr`でポストを表示する方法を説明しています。([ArduPilot.org][2])
-
-ソースコード側では、前方Rangefinderも360度LiDARも、同じ`measure_distance_at_angle_bf()`系の仮想障害物計算を利用します。関数は車両位置から指定角度へレイを伸ばし、ポストとの交差距離を返します。また、`/tmp/post-locations.scr`も同じ処理から生成されます。([GitHub][4])
-
-このため、
-
-```text
-360度LiDARを使う地点
-＋
-標準アナログRangefinder
-＋
-SIM_SONAR_ROT=0
-```
-
-という組み合わせで、前方1点LiDAR相当の試験が成立します。
-
-これは公式Wikiに一連の手順として掲載された構成ではありませんが、**ArduRover 4.6.3の実装上は接続されています**。現在のプロジェクト資料でも、この点は「公式手順」と「ソースから導いた検証手順」を分けて記述できています。
-
----
-
-### 4. Luaから同じRangefinder値を取得できる
-
-ArduRover 4.6.3のLua APIには、次のメソッドがあります。
-
-```lua
-rangefinder:has_data_orient(orientation)
-rangefinder:distance_cm_orient(orientation)
-```
-
-したがって、前方を表す`0`を指定できます。
-
-```lua
-local FRONT = 0
-
-if rangefinder:has_data_orient(FRONT) then
-    local distance_cm =
-        rangefinder:distance_cm_orient(FRONT)
-end
-```
-
-APIの存在は4.6.3のLua定義で確認できます。([GitHub][5])
-
-つまり、標準SITLと実機TF-Lunaでは、センサー設定は違ってもLua側の読取り部分を共通化できます。
-
-```text
-標準SITL
-RNGFND1_TYPE=1
-        ↓
-distance_cm_orient(0)
-
-実機TF-Luna
-RNGFND1_TYPE=20
-        ↓
-distance_cm_orient(0)
-```
-
-これが今回の構成の大きな利点です。
-
----
-
-## プロジェクトの各フェーズの実現性
-
-| フェーズ         | 実現性 | 判断                            |
-| ------------ | --: | ----------------------------- |
-| 前方距離の表示      |  高い | 標準SITLとLua APIで直接可能           |
-| 距離に応じた状態判定   |  高い | Luaだけで実装可能                    |
-| 警戒距離で減速      |  高い | Guided系の走行指令で可能               |
-| 停止距離で停止      |  高い | Guided系の速度指令で可能               |
-| センサー喪失時の停止   |  高い | `has_data_orient()`とタイムアウトで可能 |
-| 一定時間後退       |  高い | 負の速度指令で可能                     |
-| 固定方向旋回       |  高い | 旋回レート＋速度指令で可能                 |
-| 前方再確認        |  高い | 同じRangefinder値で可能             |
-| 左右の安全方向を直接比較 | 不可能 | 前方1点だけでは左右を同時に観測できない          |
-| 後退・固定旋回後の前方再確認 |  高い | 新しい進行方向を同じRangefinderで確認できる      |
-| 実車の正確な制動距離再現 |  低い | 標準SITLの簡易車両モデルでは不足            |
-| 任意形状の障害物配置   |  低い | 内蔵ポストは固定的                     |
-| 接触・衝突物理      |  低い | ポストは主に測距計算用                   |
-
-LuaにはRover向けの次のAPIも定義されています。
-
-```lua
-vehicle:set_desired_turn_rate_and_speed(turn_rate, speed)
-vehicle:set_desired_speed(speed)
-vehicle:set_steering_and_throttle(steering, throttle)
-```
-
-特に旋回レートと速度の組み合わせは、公式サンプルでもRoverを円運動させる用途に使用されています。([GitHub][5])
-
----
-
-## 重要な制約
-
-### 1. ポストは「物理的な障害物」とは限らない
-
-標準SITLの内蔵ポストは、測距レイとの交差距離を計算するための仮想物体です。ソースを見る限り、WebotsのSolidノードのように車体との衝突反力を発生させる構造ではありません。
-
-したがって、Luaが停止しなければRoverはポスト位置を通過する可能性があります。
-
-これは今回の目的にはむしろ有用です。
-
-```text
-距離が停止閾値以下になった
-    ↓
-Luaが停止指令を出したか
-    ↓
-停止位置がポスト位置を越えなかったか
-```
-
-という判定をログから行えば、回避ロジックの成否を評価できます。
-
----
-
-### 2. ポストは連続した壁ではない
-
-内蔵障害物は格子状のポスト群であり、Webotsの壁や箱のような連続面ではありません。前方1点レイは、ポストとポストの間を向くと何も検出しません。現在の手順書もこの制約を試験項目として適切に扱っています。
-
-したがって初期試験では、次の順序がよいです。
-
-1. ポストを真正面に置く
-2. 直進して距離が減ることを確認
-3. 停止処理を確認
-4. 車体角度を少しずつ変えて未検出条件を確認
-5. 旋回中に障害物がレイから外れる動作を確認
-
----
-
-### 3. Acroモードへの直接介入は別問題
-
-距離取得はAcroでも可能ですが、Luaの走行APIがAcroモード内部のスロットルを直接制限できるとは限りません。
-
-`set_desired_turn_rate_and_speed()`はRoverのGuided制御で使われる指令です。ArduPilot本体でも、MAVLinkの旋回レート＋速度指令は`mode_guided`へ渡されています。([GitHub][6])
-
-そのため、最初の制御試験は次の構成に固定するのが安全です。
-
-```text
-GUIDEDモード
-    ↓
-Luaが前方距離を取得
-    ↓
-Luaが速度・旋回レートを継続送信
-    ↓
-停止・後退・旋回を実行
-```
-
-**Acro操縦をLuaで上書きする試験から始めない方がよい**です。
-
----
-
-## Webotsを残す範囲
-
-標準SITLへ移行しても、Webots環境を削除する必要はありません。
-
-### 標準SITLで行うもの
-
-* Lua構文・起動確認
-* 距離API確認
-* 状態遷移確認
-* 閾値とヒステリシス確認
-* センサー喪失処理
-* 停止・後退・旋回コマンド確認
-* 20回以上の反復試験
-* リグレッションテスト
-
-### Webotsまたは実機で行うもの
-
-* CC-02に近い操舵特性
-* タイヤのグリップとスリップ
-* 慣性を含む実際の制動距離
-* 壁、箱、車両など任意形状の障害物
-* 斜め面や複雑な地形
-* 接触・衝突
-* TF-Luna固有のノイズや欠測
-* センサー取付位置・取付角度の影響
-
-Webotsは最初の開発環境ではなく、**標準SITLを通過したコードの上位試験環境**として残すのが合理的です。
-
----
-
-## 推奨する最終構成
-
-```text
-┌──────────────────────────────────┐
-│ 第1段階：標準ArduRover SITL       │
-│                                  │
-│ 内蔵ポスト                       │
-│   ↓                              │
-│ 前方1点Rangefinder               │
-│   ↓                              │
-│ Lua状態機械                      │
-│   ↓                              │
-│ 減速・停止・後退・固定旋回       │
-│                                  │
-│ 目的：高速な反復・回帰テスト     │
-└──────────────────────────────────┘
-                  ↓
-┌──────────────────────────────────┐
-│ 第2段階：Webots                   │
-│                                  │
-│ 任意障害物・車体物理・衝突       │
-│                                  │
-│ 目的：複雑なシナリオ確認         │
-└──────────────────────────────────┘
-                  ↓
-┌──────────────────────────────────┐
-│ 第3段階：CC-02実機                │
-│                                  │
-│ Pixhawk 6C Mini＋TF-Luna         │
-│                                  │
-│ 目的：停止距離と安全性の最終確認 │
-└──────────────────────────────────┘
-```
-
-## 最終判定
-
-**今回のプロジェクト概要は技術的に成立しています。** 
-
-特に、
+前方1点Rangefinderを`PRX1_TYPE=4`でProximity Sensorへ変換すれば、ArduPilot標準のSimple Object Avoidanceによる障害物前停止をSITLで試せる。
 
 ```text
 SITL内蔵ポスト
-→ 前方1点Rangefinder
-→ distance_cm_orient(0)
-→ Lua状態機械
-→ Guidedの速度・旋回指令
+    ↓
+前方1点Rangefinder
+    ↓
+PRX1_TYPE=4
+    ↓
+Simple Object Avoidance
+    ↓
+減速・停止
 ```
 
-という主要経路は、ArduRover 4.6.3の実装とAPIから確認できます。
+一方、前方1点では左右の空き方向を観測できないため、BendyRulerの自律迂回は評価対象にしない。本書でいう標準障害物回避は「障害物前で停止する方式」である。
 
-未確認なのは「実現できるか」ではなく、**手順どおりに実行した際に、現在のローカル環境で期待する距離値が出るかという実行確認**です。最初の合否判定は次の3点で十分です。
+## 1. SITLと実機の対応
+
+| 項目 | 最新ソースSITL | CC-02実機 |
+| --- | --- | --- |
+| ファームウェア | 最新`master` | ArduRover 4.6.3 |
+| センサー | 前方1点SITL Rangefinder | 前方TF-Luna 1台 |
+| Rangefinder型 | `RNGFND1_TYPE=100` | `RNGFND1_TYPE=20` |
+| 最小・最大距離 | `RNGFND1_MIN/MAX`、m | `RNGFND1_MIN_CM/MAX_CM`、cm |
+| 向き | `RNGFND1_ORIENT=0` | `RNGFND1_ORIENT=0` |
+| Proximity変換 | `PRX1_TYPE=4` | `PRX1_TYPE=4` |
+| 標準停止 | `AVOID_ENABLE=7` | `AVOID_ENABLE=7` |
+| 停止余裕 | `AVOID_MARGIN=2` | `AVOID_MARGIN=2` |
+| 経路計画 | `OA_TYPE=0` | `OA_TYPE=0` |
+
+SITLと実機でRangefinderドライバと距離パラメータ名は異なるが、センサーの視野、向き、Proximity変換、Simple Object Avoidanceの設定は合わせる。
+
+## 2. 試験前の版確認
+
+ArduPilotリポジトリのルートで実行し、試験ログへコミットIDを残す。
+
+```bash
+git describe --tags --always --dirty
+git branch --show-current
+git rev-parse HEAD
+```
+
+`master`は更新される。「最新」とだけ記録せず、再現可能なSHAを残す。
+
+### 確認結果（2026-06-22）
+
+| 項目 | 確認値 |
+| --- | --- |
+| 実行端末 | `TrigkeyS5` |
+| ArduPilotディレクトリ | `~/ardupilot` |
+| `git describe --tags --always --dirty` | `ArduPilot-4.6.0-beta1-7220-g7cd2375e07` |
+| ブランチ | `master` |
+| コミット | [`7cd2375e0798913d4bb1a3b7b2402502ea3635e5`](https://github.com/ArduPilot/ardupilot/commit/7cd2375e0798913d4bb1a3b7b2402502ea3635e5) |
+
+`git describe`の出力に`-dirty`接尾辞は付いていない。このコミットを以後のSITL試験結果の基準版とする。
+
+## 3. 前方1点Rangefinder付きRover SITLを起動
+
+```bash
+Tools/autotest/sim_vehicle.py -v Rover --console --map \
+  -l 51.8752066,14.6487840,54.15,0
+```
+
+付けない指定:
 
 ```text
-1. DISTANCE_SENSOR.current_distanceがcm単位で更新される
-2. ポストへ接近すると値が減少する
-3. Luaのdistance_cm_orient(0)と同じcm値になる
+--serial5=sim:ld06
 ```
 
-この3点を通過すれば、Webotsを使わずにLua障害物回避の主要開発を進められます。
+既存SITLパラメータを消す場合だけ、初回の起動コマンドへ`-w`を付ける。毎回は使用しない。
 
-## プロジェクト内の関連資料
+## 4. センサー受信だけを確認
+
+最初は標準回避制御を無効にし、前方距離とProximity変換だけを確認する。
+
+```text
+param set SIM_SONAR_ROT 0
+param set RNGFND1_TYPE 100
+param set RNGFND1_MIN 0
+param set RNGFND1_MAX 50
+param set RNGFND1_ORIENT 0
+
+param set PRX1_TYPE 4
+param set AVOID_ENABLE 0
+param set OA_TYPE 0
+reboot
+```
+
+再起動後に確認する。
+
+```text
+param show SIM_SONAR_ROT
+param show RNGFND1_TYPE
+param show RNGFND1_MIN
+param show RNGFND1_MAX
+param show RNGFND1_ORIENT
+param show PRX1_TYPE
+param show AVOID_ENABLE
+param show OA_TYPE
+
+script /tmp/post-locations.scr
+module load graph
+graph DISTANCE_SENSOR.current_distance
+module load proximity
+```
+
+`DISTANCE_SENSOR.current_distance`はcm単位である。`module load proximity`では、前方1点だけがProximity情報として表示される。
+
+### 4.1 Mission Plannerで前方距離を表示
+
+Mission Plannerでは、前方Rangefinderの`DISTANCE_SENSOR.id=0`が`rangefinder1`へ割り当てられる。表示単位はcmである。
+
+#### MAVLink Inspectorで生値をグラフ表示
+
+1. MAVLink Inspectorを開く
+2. `Vehicle 1` → `Comp 1` → `DISTANCE_SENSOR`を展開する
+3. `current_distance`を選択する
+4. `Graph It`を押す
+
+この方法はMAVLinkの生値をそのまま確認する。確認画面の例では次の値を受信している。
+
+| フィールド | 値 | 意味 |
+| --- | ---: | --- |
+| `id` | 0 | 1台目のRangefinder。Mission Plannerでは`rangefinder1` |
+| `orientation` | 0 | 前方 |
+| `current_distance` | 193 | 193 cm、すなわち1.93 m |
+| `max_distance` | 5000 | 5000 cm、すなわち50 m |
+| 更新周期 | 約3.7 Hz | 画面で確認した受信レート |
+
+#### Quickタブへ常時数値表示
+
+1. `Flight Data`を開く
+2. 画面下部の`Quick`タブを開く
+3. 変更する数値タイルをダブルクリックする
+4. 一覧から`RangeFinder1 (cm)`を選択する
+
+Quickタイルには`193`のようにcm単位で表示される。mへ読み替える場合は100で割る。
+
+前向きセンサーでは`sonarrange`を選ばない。`sonarrange`はMission Planner内で高度用Rangefinderとして扱われる項目であり、本試験の前向き`DISTANCE_SENSOR.id=0`は`rangefinder1`で確認する。
+
+#### Tuningグラフへ表示
+
+1. `Flight Data`で`Tuning`をチェックしてグラフを表示する
+2. Tuningグラフをダブルクリックする
+3. 項目一覧から`rangefinder1`をチェックする
+4. 停止挙動も同時に見る場合は`groundspeed`もチェックする
+5. 単位差で線が見づらい場合は、片方の項目を右クリックして右側Y軸へ割り当てる
+
+Tuningの項目選択画面では、Quickタブの`RangeFinder1 (cm)`ではなく内部名の`rangefinder1`と表示される。`rangefinder1`はcm、`groundspeed`はMission Plannerの速度表示単位なので、同じY軸へ重ねず左右のY軸へ分けると確認しやすい。
+
+### センサー確認の合格条件
+
+- MAVProxyマップへ仮想ポストが表示される
+- 車体前方にポストを向けると距離が減る
+- 車体を旋回してレイがポストを外すと範囲外相当の大きな値へ戻る
+- Proximity表示は前方だけで、左右や後方には検出情報がない
+- `AVOID_ENABLE=0`なので、この段階では自動停止しない
+
+ここを通過するまで、標準停止試験へ進まない。
+
+## 5. Simple Object Avoidanceを有効化
+
+```text
+param set AVOID_ENABLE 7
+param set AVOID_MARGIN 2
+param set AVOID_BEHAVE 1
+param set AVOID_BACKUP_SPD 0
+param set OA_TYPE 0
+reboot
+```
+
+| パラメータ | 値 | 意味 |
+| --- | ---: | --- |
+| `PRX1_TYPE` | 4 | RangefinderをProximity Sensorとして使用 |
+| `AVOID_ENABLE` | 7 | Fence、Proximity、Beacon Fenceを有効化。今回の障害物入力はProximity |
+| `AVOID_MARGIN` | 2 | 障害物から維持しようとする距離2 m |
+| `AVOID_BEHAVE` | 1 | Stop。Roverの既定もStopだが試験条件を明示する |
+| `AVOID_BACKUP_SPD` | 0 | 障害物へ近すぎても自動後退させない |
+| `OA_TYPE` | 0 | BendyRuler等の経路計画を無効化 |
+
+速度グラフを開く。
+
+```text
+module load graph
+graph VFR_HUD.groundspeed
+```
+
+## 6. 障害物前停止を試す
+
+マップ上で車体前方にポストが来るよう向きを合わせ、低速で接近する。例として`ACRO`を使用する。
+
+```text
+mode acro
+arm throttle
+rc 3 1550
+```
+
+停止後はスロットルを中立へ戻し、Disarmする。
+
+```text
+rc 3 1500
+disarm
+```
+
+### 合格条件
+
+- Luaスクリプトを使っていない
+- `MANUAL`以外のモードで試験している
+- 前方距離が減るとRoverが減速を開始する
+- ポストへ接触する前に対地速度が0付近になる
+- 停止後も前進指令を残した状態で、障害物を通り抜けない
+- `AVOID_BACKUP_SPD=0`なので自動後退しない
+- `OA_TYPE=0`なので左右への自律迂回は行わない
+
+`MANUAL`ではSimple Object Avoidanceが停止させない。必要なら最後に低速で負の対照試験として確認する。
+
+## 7. 前方1点構成での制約
+
+### 左右の安全方向を選べない
+
+前方1点Rangefinderが取得できるのは、現在の車体正面にある障害物までの距離だけである。
+
+```text
+左側の空き: 不明
+前方の距離: 測定可能
+右側の空き: 不明
+```
+
+そのため、`OA_TYPE=1`へ変更してBendyRulerを動作させても、安全な左右方向を観測に基づいて比較できない。本構成ではBendyRulerの成功・安全性を判定しない。
+
+### 標準機能で確認する範囲
+
+- 前方障害物の検出
+- 距離に応じた減速
+- `AVOID_MARGIN`を用いた前停止
+- センサーが前方から外れた場合の動作
+- `MANUAL`とそれ以外のモード差
+
+### 標準機能だけでは確認しない範囲
+
+- 左右を比較した自律迂回
+- 後退後の安全方向選択
+- 固定旋回後の前方再確認
+- 袋小路からの離脱
+
+後退・固定旋回・前方再確認を実現する場合は、前方1点という実機制約を前提にLua状態機械として別試験する。
+
+## 8. 実機4.6.3へ対応させる設定
+
+実機ではRangefinder部分だけをTF-Luna用へ置き換える。
+
+```text
+SERIAL2_PROTOCOL = 9
+SERIAL2_BAUD     = 115
+RNGFND1_TYPE     = 20
+RNGFND1_MIN_CM   = 20
+RNGFND1_MAX_CM   = 700
+RNGFND1_ORIENT   = 0
+
+PRX1_TYPE        = 4
+AVOID_ENABLE     = 7
+AVOID_MARGIN     = 2
+AVOID_BACKUP_SPD = 0
+OA_TYPE          = 0
+```
+
+SITL用の`RNGFND1_TYPE=100`、`RNGFND1_MIN`、`RNGFND1_MAX`を実機へ書き込まない。
+
+## 9. トラブルシュート
+
+### 前方距離が表示されない
+
+- `RNGFND1_TYPE=100`か
+- `RNGFND1_ORIENT=0`か
+- `SIM_SONAR_ROT=0`か
+- 設定後に再起動したか
+- ポストを車体正面へ向けているか
+
+### Rangefinder値は出るが停止しない
+
+- `PRX1_TYPE=4`か
+- `AVOID_ENABLE`にProximityのbit 1が含まれるか。`7`には含まれる
+- `AVOID_BEHAVE=1`か
+- `MANUAL`で試していないか
+- `AVOID_ENABLE=0`のセンサー確認段階のままではないか
+
+### 停止距離が2 mにならない
+
+`AVOID_MARGIN=2`は、グラフ上の距離を常に2.00 mへ固定する設定ではない。速度、加速度制限、Roverの制御応答、ポストの半径などが停止位置へ影響する。低速から始め、実測停止距離をログへ残す。
+
+### 停止するが迂回しない
+
+本構成では正常である。`OA_TYPE=0`で停止だけを採用しており、前方1点では左右の空き方向も観測できない。
+
+## 10. 試験記録
+
+| ID | 試験 | 合格条件 |
+| --- | --- | --- |
+| STD-FRONT-01 | 前方距離受信 | ポスト接近で距離が減る |
+| STD-FRONT-02 | Proximity変換 | 前方RangefinderがProximityへ反映される |
+| STD-FRONT-03 | Simple OA停止 | ポスト手前で対地速度が0付近になる |
+| STD-FRONT-04 | `MANUAL`負の対照 | 自動停止しないことを低速で確認 |
+| STD-FRONT-05 | レイ逸脱 | 旋回してポストを外した場合の挙動を確認 |
+| STD-FRONT-06 | 反復 | 同じ条件を10回繰り返す |
+
+### 実施結果（2026-06-22）
+
+| ID | モード | 結果 | 証拠・補足 |
+| --- | --- | --- | --- |
+| `STD-FRONT-03` | `ACRO` | 合格 | ArduPilot標準Simple Object Avoidanceによる障害物前停止を確認。Mission PlannerのMAVLink Inspectorで`DISTANCE_SENSOR.id=0`、`orientation=0`、`current_distance=193 cm`を確認 |
+
+各試験で最低限、次を記録する。
+
+- `git rev-parse HEAD`
+- 使用モード
+- `RNGFND1_*`、`PRX1_*`、`AVOID_*`、`OA_TYPE`
+- 接近開始速度
+- 停止時のRangefinder距離
+- ポスト中心または外周からの停止距離
+- DataFlashログとMAVProxy画面
+
+## 関連資料
 
 - [Lua障害物回避プロジェクト概要](README.md)
 - [Rover SITL前方Rangefinder / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)
+- [仮想ポストKML表示補助](05_仮想ポストKML表示補助.md)
+- [rover-gcsのWebots連携ガイド](https://github.com/zorosdrone/rover-gcs/blob/main/docs/webots_setup.md)
 
-[1]: https://github.com/zorosdrone/rover-gcs/blob/main/docs/webots_setup.md "rover-gcs/docs/webots_setup.md at main · zorosdrone/rover-gcs · GitHub"
-[2]: https://ardupilot.org/dev/docs/adding_simulated_devices.html?utm_source=chatgpt.com "Adding Simulated Peripherals to sim_vehicle"
-[3]: https://github.com/ArduPilot/ardupilot/blob/Rover-4.6.3/libraries/SITL/SIM_Aircraft.cpp "ardupilot/libraries/SITL/SIM_Aircraft.cpp at Rover-4.6.3 · ArduPilot/ardupilot · GitHub"
-[4]: https://raw.githubusercontent.com/ArduPilot/ardupilot/Rover-4.6.3/libraries/SITL/SITL.cpp "raw.githubusercontent.com"
-[5]: https://raw.githubusercontent.com/ArduPilot/ardupilot/Rover-4.6.3/libraries/AP_Scripting/docs/docs.lua "raw.githubusercontent.com"
-[6]: https://github.com/ardupilot/ardupilot/blob/master/Rover/mode.h?utm_source=chatgpt.com "ardupilot/Rover/mode.h at master"
+## 公式資料
+
+- [Adding Simulated Peripherals to sim_vehicle](https://ardupilot.org/dev/docs/adding_simulated_devices.html)
+- [Simple Object Avoidance](https://ardupilot.org/rover/docs/common-simple-object-avoidance.html)
+- [Proximity Sensors](https://ardupilot.org/rover/docs/common-proximity-landingpage.html)
+- [最新Rangefinderパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_RangeFinder/AP_RangeFinder_Params.cpp)
+- [最新SITL Rangefinderドライバ](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_RangeFinder/AP_RangeFinder_SITL.cpp)
+- [最新Simple Avoidanceパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AC_Avoidance/AC_Avoid.cpp)
+- [Mission PlannerのDISTANCE_SENSOR割当実装](https://github.com/ArduPilot/MissionPlanner/blob/master/ExtLibs/ArduPilot/CurrentState.cs)
+- [Mission PlannerのQuick・Tuningグラフ実装](https://github.com/ArduPilot/MissionPlanner/blob/master/GCSViews/FlightData.cs)

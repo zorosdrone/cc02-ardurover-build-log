@@ -1,8 +1,10 @@
 # Rover SITL前方Rangefinder / Lua設定手順
 
-更新日: 2026-06-21
+更新日: 2026-06-22
 
-基準バージョン: ArduRover 4.6.3（実機ファームウェアに合わせる）
+シミュレーション基準: 最新ArduPilotソース（`master`。試験時のコミットを記録する）
+
+実機基準: ArduRover 4.6.3
 
 ## 目的
 
@@ -10,10 +12,12 @@ ArduPilot Rover SITLの内蔵機能だけで、前方へ1本の測距レイを�
 
 この手順では360度LiDARの`sim:ld06`を使用しない。
 
-実機に載せるLua障害物回避を前提にするため、SITLも実機ファームウェアと同じArduRover 4.6.3へ合わせる。他の開発メンバーが最新ArduPilotソースや4.7系以降で試す場合だけ、本書内の差分表に従って`RNGFND1_MIN` / `RNGFND1_MAX`と`distance_orient()`へ読み替える。
+シミュレーション開発では、最新ArduPilotソースのSITL専用Rangefinderドライバ、m単位のパラメータ、およびm単位のLua APIを使用する。実機はArduRover 4.6.3のままなので、TF-Lunaの実機設定とcm単位のLua APIを別枠で残す。
+
+SITLと実機では、パラメータファイルとLuaスクリプトを共用しない。共通ロジックへ距離を渡す場合は、境界でmへ正規化する。
 
 > [!IMPORTANT]
-> 公式記事には「単体SITLの内蔵バリアを前方1点Rangefinderで測る」という一連の手順はない。本書は、公式WikiのアナログRangefinder設定、360度LiDAR用の仮想バリア地点、および`SIM_Aircraft.cpp` / `SITL.cpp`の水平Rangefinder実装を組み合わせた検証手順である。測距値を実行確認してからLua制御へ進む。
+> 公式記事には「単体SITLの内蔵バリアを前方1点Rangefinderで測る」という一連の手順はない。本書は、360度LiDAR用の仮想バリア地点、SITL専用Rangefinderドライバ、および`SIM_Aircraft.cpp` / `SITL.cpp`の水平Rangefinder実装を組み合わせた検証手順である。測距値を実行確認してからLua制御へ進む。
 
 ## クイック起動コマンド
 
@@ -36,21 +40,28 @@ graph DISTANCE_SENSOR.current_distance
 
 ```text
 param set SIM_SONAR_ROT 0
-param set SIM_SONAR_SCALE 10
-param set RNGFND1_TYPE 1
-param set RNGFND1_PIN 0
-param set RNGFND1_SCALING 10
-param set RNGFND1_MIN_CM 0
-param set RNGFND1_MAX_CM 5000
+param set RNGFND1_TYPE 100
+param set RNGFND1_MIN 0
+param set RNGFND1_MAX 50
 param set RNGFND1_ORIENT 0
 reboot
 ```
 
 `--serial5=sim:ld06`は付けない。既存SITLパラメータを消す必要がある場合だけ、起動コマンドに`-w`を一時的に付ける。
 
-## 1. 実機設定とSITL設定を分ける
+## 1. 最新SITL設定と4.6.3実機設定を分ける
 
-CC-02実機のTF-Luna設定:
+本書の最新ソースSITL設定:
+
+```text
+SIM_SONAR_ROT    = 0
+RNGFND1_TYPE     = 100
+RNGFND1_MIN      = 0
+RNGFND1_MAX      = 50
+RNGFND1_ORIENT   = 0
+```
+
+CC-02実機（ArduRover 4.6.3）のTF-Luna設定:
 
 ```text
 SERIAL2_PROTOCOL = 9
@@ -61,18 +72,7 @@ RNGFND1_MAX_CM   = 700
 RNGFND1_ORIENT   = 0
 ```
 
-本書のSITL設定:
-
-```text
-RNGFND1_TYPE     = 1
-RNGFND1_PIN      = 0
-RNGFND1_SCALING  = 10
-RNGFND1_MIN_CM   = 0
-RNGFND1_MAX_CM   = 5000
-RNGFND1_ORIENT   = 0
-```
-
-SITL用設定を実機Pixhawkへ書き込まない。
+最新SITL用設定を実機Pixhawkへ書き込まない。特に`RNGFND1_TYPE=100`はSITL専用であり、実機のTF-Lunaには使用しない。
 
 ## 2. ArduPilotの版を確認
 
@@ -80,15 +80,21 @@ ArduPilotリポジトリのルートで実行する。
 
 ```bash
 git describe --tags --always --dirty
+git branch --show-current
+git rev-parse HEAD
 ```
 
-この手順は`Rover-4.6.3`用である。実機ファームウェアが4.6.3なら、シミュレーションも同じ版へ合わせる。
+シミュレーションは最新ソースを使用し、試験ログへコミットIDを残す。`master`は更新されるため、「最新」とだけ記録せず、再現可能なSHAを必ず残す。
 
-| 項目 | Rover-4.6.3（本手順の基準） | 最新ArduPilotソース / 4.7系以降 |
+| 項目 | 最新ArduPilotソース（SITL基準） | ArduRover 4.6.3（実機基準） |
 | --- | --- | --- |
-| 最小距離 | `RNGFND1_MIN_CM`、cm | `RNGFND1_MIN`、m |
-| 最大距離 | `RNGFND1_MAX_CM`、cm | `RNGFND1_MAX`、m |
-| Lua距離API | `distance_cm_orient()`、cm | `distance_orient()`、m |
+| Rangefinder種別 | `RNGFND1_TYPE=100`（SITL専用） | `RNGFND1_TYPE=20`（TFmini/TF-Luna Serial） |
+| 最小距離 | `RNGFND1_MIN`、m | `RNGFND1_MIN_CM`、cm |
+| 最大距離 | `RNGFND1_MAX`、m | `RNGFND1_MAX_CM`、cm |
+| Lua距離API | `distance_orient()`、m | `distance_cm_orient()`、cm |
+| MAVLink `DISTANCE_SENSOR.current_distance` | cm | cm |
+
+最新ソースにも`distance_cm_orient()`は互換APIとして残っているが非推奨である。SITL側の新規コードでは`distance_orient()`を使う。
 
 ## 3. Rover SITLを仮想バリア地点で起動
 
@@ -117,13 +123,10 @@ MAVProxyコンソールで実行する。
 
 ```text
 param set SIM_SONAR_ROT 0
-param set SIM_SONAR_SCALE 10
 
-param set RNGFND1_TYPE 1
-param set RNGFND1_PIN 0
-param set RNGFND1_SCALING 10
-param set RNGFND1_MIN_CM 0
-param set RNGFND1_MAX_CM 5000
+param set RNGFND1_TYPE 100
+param set RNGFND1_MIN 0
+param set RNGFND1_MAX 50
 param set RNGFND1_ORIENT 0
 
 reboot
@@ -132,41 +135,47 @@ reboot
 | パラメータ | 値 | 意味 |
 | --- | ---: | --- |
 | `SIM_SONAR_ROT` | 0 | SITLの測距レイを車体前方へ向ける |
-| `SIM_SONAR_SCALE` | 10 | 仮想距離からアナログ電圧へのm/Vスケール |
-| `RNGFND1_TYPE` | 1 | Analog Rangefinder |
-| `RNGFND1_PIN` | 0 | SITL仮想アナログ入力 |
-| `RNGFND1_SCALING` | 10 | アナログ電圧から距離へのm/Vスケール |
-| `RNGFND1_MIN_CM` | 0 | 最小距離0 cm |
-| `RNGFND1_MAX_CM` | 5000 | 最大距離50 m。グラフの縦軸上限ではなく、Rangefinderとして扱う有効距離の上限 |
+| `RNGFND1_TYPE` | 100 | 最新ソースのSITL専用Rangefinderドライバ |
+| `RNGFND1_MIN` | 0 | 最小距離0 m |
+| `RNGFND1_MAX` | 50 | 最大距離50 m。グラフの縦軸上限ではなく、Rangefinderとして扱う有効距離の上限 |
 | `RNGFND1_ORIENT` | 0 | ArduPilot側で前向きとして登録 |
 
 `SIM_SONAR_ROT`は測距レイの物理方向、`RNGFND1_ORIENT`はArduPilotが扱うセンサー方向であり、両方を0にする。
 
-`RNGFND1_MAX_CM`はMAVProxyグラフの縦軸上限ではない。`DISTANCE_SENSOR.current_distance`では、ポスト未検出時や範囲外相当で5000 cm付近が表示されることがある。グラフを見やすくしたい場合は、値を拡大表示するか、グラフをクリアしてポスト接近時の変化を見る。
+`RNGFND1_TYPE=100`はSITLが生成した距離をm単位で直接受け取るため、アナログ模擬用の`RNGFND1_PIN`、`RNGFND1_SCALING`、`SIM_SONAR_SCALE`は設定しない。
+
+> [!NOTE]
+> `RNGFND1_TYPE=100`、`RNGFND1_MIN` / `RNGFND1_MAX`、`distance_orient()`は2026-06-22時点の`master`ソースで確認した。`master`は更新されるため、実行時のコミットでパラメータ表示と距離値を再確認する。
+
+`RNGFND1_MAX`はMAVProxyグラフの縦軸上限ではない。最新のSITL専用ドライバでは、ポスト未検出時に設定上限50 mを超える大きな値が`DISTANCE_SENSOR.current_distance`へ現れることがある。これは有効な実距離として扱わず、Rangefinderの状態とポスト接近時の変化を見る。旧アナログ模擬設定では5000 cm付近が表示されることがある。
 
 再起動後に確認する。
 
 ```text
 param show SIM_SONAR_ROT
-param show SIM_SONAR_SCALE
 param show RNGFND1_TYPE
-param show RNGFND1_PIN
-param show RNGFND1_SCALING
-param show RNGFND1_MIN_CM
-param show RNGFND1_MAX_CM
+param show RNGFND1_MIN
+param show RNGFND1_MAX
 param show RNGFND1_ORIENT
 ```
 
-### 最新ArduPilotソース / 4.7系以降を使う場合
+### ArduRover 4.6.3のSITLを再現する場合
 
-距離パラメータだけをm単位へ差し替える。
+過去ログを同じ4.6.3環境で再現するときだけ、従来のアナログ模擬設定を使用する。
 
 ```text
-param set RNGFND1_MIN 0
-param set RNGFND1_MAX 50
+param set SIM_SONAR_ROT 0
+param set SIM_SONAR_SCALE 10
+param set RNGFND1_TYPE 1
+param set RNGFND1_PIN 0
+param set RNGFND1_SCALING 10
+param set RNGFND1_MIN_CM 0
+param set RNGFND1_MAX_CM 5000
+param set RNGFND1_ORIENT 0
+reboot
 ```
 
-`_CM`版とm版を混ぜない。チーム内で結果を比較する場合は、使用したArduPilotの版と、どちらのパラメータ名で設定したかを記録する。
+これは4.6.3実機のTF-Luna設定ではなく、旧版SITLを再現するためだけの設定である。最新SITL、4.6.3 SITL、4.6.3実機のパラメータを混ぜない。
 
 ## 5. 仮想ポストを地図へ表示
 
@@ -198,9 +207,9 @@ module load graph
 graph DISTANCE_SENSOR.current_distance
 ```
 
-2026-06-20のローカル実行では、`DISTANCE_SENSOR.current_distance`で距離グラフが表示されることを確認した。`current_distance`の単位はcmである。
+2026-06-20のArduRover 4.6.3 SITLローカル実行では、旧アナログ模擬設定で`DISTANCE_SENSOR.current_distance`の距離グラフが表示されることを確認した。最新ソースの`RNGFND1_TYPE=100`でも同じMAVLinkフィールドを使うが、選択したコミットで再実行し、試験ログへ結果を残す。`current_distance`の単位はcmである。
 
-Luaの`distance_cm_orient(0)`もcmなので、両者は単位変換せず比較できる。Lua側でm表示した値と比較する場合は、`DISTANCE_SENSOR.current_distance * 0.01`としてmへ変換する。
+最新ソースのLua API `distance_orient(0)`はm、MAVLinkの`DISTANCE_SENSOR.current_distance`はcmである。両者を比較する場合は、`DISTANCE_SENSOR.current_distance * 0.01`としてMAVLink側をmへ変換する。
 
 公式資料などで使われる`RANGEFINDER.distance`がこの接続で表示されない場合は、実行確認済みの`DISTANCE_SENSOR.current_distance`を使用する。
 
@@ -212,7 +221,7 @@ Luaの`distance_cm_orient(0)`もcmなので、両者は単位変換せず比較�
 
 ### 6.1 近距離を見やすくする
 
-MAVProxyの`graph`コマンドには、確認できる範囲では縦軸を数値指定するサブコマンドがない。`RNGFND1_MAX_CM`もグラフ縦軸の設定ではない。
+MAVProxyの`graph`コマンドには、確認できる範囲では縦軸を数値指定するサブコマンドがない。`RNGFND1_MAX`もグラフ縦軸の設定ではない。
 
 近距離確認では、グラフウィンドウ側のズーム操作で0～1000 cm付近を拡大する。数値を小さく見たい場合はm単位の式を別グラフで開く。
 
@@ -227,16 +236,16 @@ graph timespan 10
 graph DISTANCE_SENSOR.current_distance
 ```
 
-近距離で正確に測れているかは、グラフの形だけで判断しない。ポストへ真正面から接近し、`current_distance`が実距離に合わせて連続的に減ること、Luaの`distance_cm_orient(0)`と同じcm値になることを確認する。
+近距離で正確に測れているかは、グラフの形だけで判断しない。ポストへ真正面から接近し、`current_distance`が実距離に合わせて連続的に減ること、`current_distance * 0.01`がLuaの`distance_orient(0)`と同じm値になることを確認する。
 
 合格条件:
 
 - ポストへ向けて接近すると距離が減少する
-- 旋回してレイがポストを外すと最大距離相当へ戻る
+- 旋回してレイがポストを外すと範囲外相当の大きな値へ戻る
 - ポスト間では検出しないことがある
 - `current_distance`がポストへの接近に合わせてcm単位で減少する
-- 距離値が飛ぶ場合は向きとスケールを再確認する
-- `RNGFND1_MAX_CM`を下げても、`DISTANCE_SENSOR.current_distance`の表示値やグラフ縦軸がその値へ丸められるとは限らない
+- 距離値が飛ぶ場合は向き、Rangefinder種別、上限距離を再確認する
+- `RNGFND1_MAX`を下げても、`DISTANCE_SENSOR.current_distance`の表示値やグラフ縦軸がその値へ丸められるとは限らない
 
 SITLのポストは半径1 m、格子間隔10 mで、交差判定レイは200 mである。連続した壁ではない。
 
@@ -263,8 +272,7 @@ local UPDATE_MS = 500
 
 local function update()
     if rangefinder:has_data_orient(FRONT) then
-        local distance_cm = rangefinder:distance_cm_orient(FRONT)
-        local distance_m = distance_cm * 0.01
+        local distance_m = rangefinder:distance_orient(FRONT)
         gcs:send_text(
             6,
             string.format("Front range: %.2f m", distance_m)
@@ -282,11 +290,16 @@ return update, UPDATE_MS
 
 この確認用スクリプトは距離表示だけを行い、速度やモードを変更しない。
 
-最新ArduPilotソース / 4.7系以降では、距離取得を次へ差し替える。
+### ArduRover 4.6.3実機へ移す場合
+
+4.6.3実機では、距離取得部分をcm単位APIへ差し替え、直後にmへ正規化する。
 
 ```lua
-local distance_m = rangefinder:distance_orient(FRONT)
+local distance_cm = rangefinder:distance_cm_orient(FRONT)
+local distance_m = distance_cm * 0.01
 ```
+
+これ以降の警戒距離、停止距離、再開距離のロジックはm単位で統一する。SITL用の`distance_orient()`を4.6.3実機へそのまま持ち込まない。
 
 SITLを再起動し、次のメッセージを確認する。
 
@@ -366,10 +379,10 @@ params/tuned/YYYYMMDD_01_before_lua_avoid_test.param
 | --- | --- | --- |
 | RF-01 | SITL距離受信 | `DISTANCE_SENSOR.current_distance`がcm単位で更新される |
 | RF-02 | ポストへ接近 | 距離が連続的に減る |
-| RF-03 | その場旋回 | ポストを外すと最大距離へ戻る |
+| RF-03 | その場旋回 | ポストを外すと範囲外相当の大きな値へ戻る |
 | RF-04 | ポスト間 | 未検出になり得ることを確認 |
 | LUA-01 | Lua起動 | 起動メッセージが1回出る |
-| LUA-02 | API単位 | Luaのcm値が`DISTANCE_SENSOR.current_distance`と一致する |
+| LUA-02 | API単位 | Luaのm値が`DISTANCE_SENSOR.current_distance * 0.01`と一致する |
 | LUA-03 | センサー無効 | `no data`を検出する |
 | SAFE-01 | Lua停止 | 停止距離より手前で停止する |
 | SAFE-02 | Lua異常 | 走行継続ではなく停止側へ倒れる |
@@ -378,7 +391,7 @@ params/tuned/YYYYMMDD_01_before_lua_avoid_test.param
 
 ## 11. トラブルシュート
 
-### `RNGFND1_MIN_CM`が見つからない
+### `RNGFND1_MIN`が見つからない
 
 ファームウェア系統を確認する。
 
@@ -387,16 +400,21 @@ param show RNGFND1_MIN*
 param show RNGFND1_MAX*
 ```
 
+最新ソースでは`RNGFND1_MIN` / `RNGFND1_MAX`を使う。ArduRover 4.6.3実機では`RNGFND1_MIN_CM` / `RNGFND1_MAX_CM`を使う。
+
 ### Luaで`distance_orient`がnilになる
 
 ArduRover 4.6.3では`distance_cm_orient()`を使う。
 
-### 距離が常に5000 cm付近
+### 距離が常に大きな値になる
 
 - レイがポストを通っているか
 - `SIM_SONAR_ROT=0`か
 - ポスト間を向いていないか
-- 両方のSCALINGが10か
+- 最新SITLで`RNGFND1_TYPE=100`か
+- 最新SITLで`RNGFND1_MIN=0`、`RNGFND1_MAX=50`か
+
+4.6.3 SITLの旧アナログ模擬設定を再現している場合だけ、`SIM_SONAR_SCALE`と`RNGFND1_SCALING`が両方10かも確認する。
 
 ### Luaが起動しない
 
@@ -419,6 +437,7 @@ SERIAL2_BAUD = 115
 ## 関連資料
 
 - [Lua障害物回避プロジェクト概要](README.md)
+- [標準ArduRover SITLで前方LiDARによる障害物前停止を試す](02_標準SITLでのLiDAR再現方針.md)
 - [現在状況](../01_現在状況.md)
 - [ArduRoverパラメータ](../01_FC換装/06_ArduRoverパラメータ.md)
 - [チューニングログ](../02_チューニング/09_チューニングログ.md)
@@ -428,6 +447,11 @@ SERIAL2_BAUD = 115
 
 - [Adding Simulated Peripherals to sim_vehicle](https://ardupilot.org/dev/docs/adding_simulated_devices.html)
 - [Using SITL with AirSim（アーカイブ）](https://ardupilot.org/dev/docs/sitl-with-airsim.html)
+- [最新Rangefinderパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_RangeFinder/AP_RangeFinder_Params.cpp)
+- [最新SITL Rangefinderドライバ](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_RangeFinder/AP_RangeFinder_SITL.cpp)
+- [最新Lua API定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_Scripting/docs/docs.lua)
+- [最新水平Rangefinder処理](https://github.com/ArduPilot/ardupilot/blob/master/libraries/SITL/SIM_Aircraft.cpp)
+- [最新仮想ポスト実装](https://github.com/ArduPilot/ardupilot/blob/master/libraries/SITL/SITL.cpp)
 - [Rover-4.6.3 Rangefinderパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/Rover-4.6.3/libraries/AP_RangeFinder/AP_RangeFinder_Params.cpp)
 - [Rover-4.6.3 Lua API定義](https://github.com/ArduPilot/ardupilot/blob/Rover-4.6.3/libraries/AP_Scripting/docs/docs.lua)
 - [Rover-4.6.3 水平Rangefinder処理](https://github.com/ArduPilot/ardupilot/blob/Rover-4.6.3/libraries/SITL/SIM_Aircraft.cpp)
