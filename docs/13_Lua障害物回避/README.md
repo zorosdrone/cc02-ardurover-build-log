@@ -175,6 +175,7 @@ QuikTune用スクリプトとの同時実行も避ける。新しいLua試験用
 
 ## 関連資料
 
+- [WSLからSITLとBendyRulerを実行する最短手順](00_SITL_BendyRuler実行手順.md)
 - [Rover SITL前方Rangefinder設定手順](01_RoverSITL前方Rangefinder設定手順.md)
 - [標準ArduRover SITLで前方LiDARによる障害物前停止を試す](02_標準SITLでのLiDAR再現方針.md)
 - [LuaとC++独自モードの実装判断](03_LuaとC++の実装判断.md)
