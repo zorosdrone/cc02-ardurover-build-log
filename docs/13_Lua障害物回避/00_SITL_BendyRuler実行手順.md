@@ -1,5 +1,7 @@
 # WSLからSITLとBendyRulerを実行する最短手順
 
+![Rover SITLでのBendyRuler実行画面](images/SITL_BendyRuler.png)
+
 更新日: 2026-06-23
 
 ## 目的
