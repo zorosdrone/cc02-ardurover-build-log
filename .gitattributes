@@ -3,7 +3,6 @@ logs/accepted/*.bin filter=lfs diff=lfs merge=lfs -text
 logs/accepted/*.BIN filter=lfs diff=lfs merge=lfs -text
 logs/accepted/*.ulg filter=lfs diff=lfs merge=lfs -text
 logs/accepted/*.tlog filter=lfs diff=lfs merge=lfs -text
-
 # Allow one level of date or test-name subdirectories under logs/accepted.
 logs/accepted/**/*.bin filter=lfs diff=lfs merge=lfs -text
 logs/accepted/**/*.BIN filter=lfs diff=lfs merge=lfs -text
@@ -18,4 +17,5 @@ videos/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
 videos/**/*.MP4 filter=lfs diff=lfs merge=lfs -text
 videos/**/*.mov filter=lfs diff=lfs merge=lfs -text
 videos/**/*.MOV filter=lfs diff=lfs merge=lfs -text
+docs/**/videos/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
 docs/13_Lua障害物回避/videos/STIL_BendyRuler.mp4 filter=lfs diff=lfs merge=lfs -text
