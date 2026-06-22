@@ -22,7 +22,7 @@ Simple Object Avoidance
 減速・停止
 ```
 
-一方、前方1点では左右の空き方向を観測できないため、BendyRulerの自律迂回は評価対象にしない。本書でいう標準障害物回避は「障害物前で停止する方式」である。
+一方、前方1点では左右の空き方向を観測できないため、BendyRulerの安全な自律迂回は合格判定できない。本書ではSimple Object Avoidanceの前停止を主試験とし、BendyRulerは設定・起動・反応を確認する実験試験として扱う。
 
 ## 1. SITLと実機の対応
 
@@ -187,7 +187,157 @@ disarm
 
 `MANUAL`ではSimple Object Avoidanceが停止させない。必要なら最後に低速で負の対照試験として確認する。
 
-## 7. 前方1点構成での制約
+## 7. BendyRuler実験設定
+
+> [!IMPORTANT]
+> この手順はBendyRulerを有効化して反応を観察するための実験手順である。前方LiDAR 1台では左右の空き方向を直接観測できないため、「安全に迂回できた」という合格判定や実機採用判断には使用しない。
+
+### 7.1 対象モード
+
+BendyRulerの経路計画は次のモードで使用する。
+
+- `AUTO`
+- `GUIDED`
+- `RTL`
+
+`ACRO`や`MANUAL`では、`OA_TYPE=1`にしてもBendyRulerによる経路迂回試験にはならない。
+
+### 7.2 前提条件
+
+- Simple Object AvoidanceのAcro停止試験に合格している
+- `PRX1_TYPE=4`で前方距離がProximityへ入っている
+- MAVLink InspectorでProximity用`DISTANCE_SENSOR id=10`が更新されている
+- 最初はSITLの単独ポストを使う
+- 左右に十分な逃げ空間がある
+- 試験速度を1 m/s以下にする
+- 通常設定へ戻せるよう、変更前パラメータを保存する
+
+MAVProxyで変更前のSITLパラメータを保存する例:
+
+```text
+param save /tmp/cc02_sitl_before_bendyruler.param
+```
+
+### 7.3 BendyRulerを有効化
+
+停止・Disarmしてから実行する。
+
+```text
+mode hold
+disarm
+
+param set OA_TYPE 1
+reboot
+```
+
+`OA_TYPE=1`設定後に、Mission Plannerではパラメータを再読込みする。MAVProxyでは次を実行する。
+
+```text
+param fetch
+```
+
+続けて初回SITL試験値を設定する。
+
+```text
+param set OA_BR_LOOKAHEAD 5
+param set OA_MARGIN_MAX 2
+param set WP_SPEED 1
+
+param set OA_DB_SIZE 100
+param set OA_DB_EXPIRE 10
+param set OA_DB_OUTPUT 3
+
+reboot
+```
+
+| パラメータ | 値 | 意味 |
+| --- | ---: | --- |
+| `OA_TYPE` | 1 | BendyRulerを有効化 |
+| `OA_BR_LOOKAHEAD` | 5 | 進行方向を5 m先まで探索 |
+| `OA_MARGIN_MAX` | 2 | 経路計画で使用する障害物距離2 m |
+| `WP_SPEED` | 1 | AUTO / GUIDED試験速度を1 m/sへ制限 |
+| `OA_DB_SIZE` | 100 | 障害物データベースを有効化。変更後は再起動が必要 |
+| `OA_DB_EXPIRE` | 10 | 未更新の障害物を10秒で削除 |
+| `OA_DB_OUTPUT` | 3 | 障害物DBをGCSへ全出力して観察しやすくする |
+
+Roverは水平BendyRulerだけを使用する。Copter向けの`OA_BR_TYPE`はRoverの設定対象ではない。
+
+再起動後に確認する。
+
+```text
+param show OA_TYPE
+param show OA_BR_LOOKAHEAD
+param show OA_MARGIN_MAX
+param show OA_DB_SIZE
+param show OA_DB_EXPIRE
+param show OA_DB_OUTPUT
+param show WP_SPEED
+```
+
+### 7.4 GUIDEDで反応を確認
+
+1. `script /tmp/post-locations.scr`で仮想ポストを表示する
+2. Roverと目標点を結ぶ直線上に単独ポストが来る配置を選ぶ
+3. `GUIDED`へ切り替える
+4. ポストの向こう側へGUIDED目標を送る
+5. 進路、対地速度、Proximity表示、GCSメッセージを観察する
+
+```text
+mode guided
+arm throttle
+```
+
+確認項目:
+
+- `OA_TYPE=1`のまま動作している
+- Proximity用`DISTANCE_SENSOR id=10`が失われていない
+- 障害物接近時に停止、進路変更、または経路なしの反応が出る
+- 障害物を外した後、GUIDED目標へ向かう動作へ復帰する
+
+前方1点構成では「右へ避けた」「左へ避けた」という結果だけで成功判定しない。見えていない側へ進路を変える可能性があるため、反応確認に留める。
+
+試験後は停止・Disarmする。
+
+```text
+mode hold
+disarm
+```
+
+### 7.5 Simple Object Avoidanceへ戻す
+
+変更前に保存したパラメータを戻す方法:
+
+```text
+param load /tmp/cc02_sitl_before_bendyruler.param
+reboot
+```
+
+最低限を手動で戻す場合:
+
+```text
+param set OA_TYPE 0
+param set OA_DB_OUTPUT 1
+param set AVOID_MARGIN 2
+param set AVOID_BACKUP_SPD 0
+reboot
+```
+
+`WP_SPEED`なども変更前の値へ戻す。復帰後、AcroでSimple Object Avoidanceの前停止を再確認する。
+
+### 7.6 既存の実機用実験版との違い
+
+既存の`params/tuned/20260613_08_oa_type1_bendyruler_test.param`は、実機4.6.3で小回りを試した過去の実験版である。
+
+```text
+OA_BR_LOOKAHEAD  = 2
+OA_MARGIN_MAX    = 1
+AVOID_MARGIN     = 1
+AVOID_BACKUP_SPD = 0.2
+```
+
+本書のSITL初回値`LOOKAHEAD=5`、`MARGIN=2`とは目的が異なる。過去実験版を通常運用正本や最新SITLへそのまま読み込まない。
+
+## 8. 前方1点構成での制約
 
 ### 左右の安全方向を選べない
 
@@ -218,7 +368,7 @@ disarm
 
 後退・固定旋回・前方再確認を実現する場合は、前方1点という実機制約を前提にLua状態機械として別試験する。
 
-## 8. 実機4.6.3へ対応させる設定
+## 9. 実機4.6.3へ対応させる設定
 
 実機ではRangefinder部分だけをTF-Luna用へ置き換える。
 
@@ -239,7 +389,7 @@ OA_TYPE          = 0
 
 SITL用の`RNGFND1_TYPE=100`、`RNGFND1_MIN`、`RNGFND1_MAX`を実機へ書き込まない。
 
-## 9. トラブルシュート
+## 10. トラブルシュート
 
 ### 前方距離が表示されない
 
@@ -265,7 +415,7 @@ SITL用の`RNGFND1_TYPE=100`、`RNGFND1_MIN`、`RNGFND1_MAX`を実機へ書き�
 
 本構成では正常である。`OA_TYPE=0`で停止だけを採用しており、前方1点では左右の空き方向も観測できない。
 
-## 10. 試験記録
+## 11. 試験記録
 
 | ID | 試験 | 合格条件 |
 | --- | --- | --- |
@@ -275,12 +425,15 @@ SITL用の`RNGFND1_TYPE=100`、`RNGFND1_MIN`、`RNGFND1_MAX`を実機へ書き�
 | STD-FRONT-04 | `MANUAL`負の対照 | 自動停止しないことを低速で確認 |
 | STD-FRONT-05 | レイ逸脱 | 旋回してポストを外した場合の挙動を確認 |
 | STD-FRONT-06 | 反復 | 同じ条件を10回繰り返す |
+| STD-BR-01 | BendyRuler有効化 | `OA_TYPE=1`と関連パラメータを確認 |
+| STD-BR-02 | GUIDED反応 | 前方障害物に対する停止・進路変更・経路なし反応を記録 |
+| STD-BR-03 | Simple OA復帰 | `OA_TYPE=0`へ戻しAcro停止を再確認 |
 
 ### 実施結果（2026-06-22）
 
 | ID | モード | 結果 | 証拠・補足 |
 | --- | --- | --- | --- |
-| `STD-FRONT-03` | `ACRO` | 合格 | ArduPilot標準Simple Object Avoidanceによる障害物前停止を確認。Mission Plannerでの距離表示経路は[前方距離表示確認](MissionPlanner_前方距離表示確認.md)を参照 |
+| `STD-FRONT-03` | `ACRO` | 合格 | ArduPilot標準Simple Object Avoidanceによる障害物前停止を確認済み |
 
 各試験で最低限、次を記録する。
 
@@ -295,16 +448,19 @@ SITL用の`RNGFND1_TYPE=100`、`RNGFND1_MIN`、`RNGFND1_MAX`を実機へ書き�
 ## 関連資料
 
 - [Lua障害物回避プロジェクト概要](README.md)
-- [Mission Plannerで前方距離を表示する](MissionPlanner_前方距離表示確認.md)
 - [Rover SITL前方Rangefinder / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)
-- [仮想ポストKML表示補助](05_仮想ポストKML表示補助.md)
+- [仮想ポストKML表示補助](補助機能/10_MP_仮想ポストKML表示補助.md)
 - [rover-gcsのWebots連携ガイド](https://github.com/zorosdrone/rover-gcs/blob/main/docs/webots_setup.md)
 
 ## 公式資料
 
 - [Adding Simulated Peripherals to sim_vehicle](https://ardupilot.org/dev/docs/adding_simulated_devices.html)
 - [Simple Object Avoidance](https://ardupilot.org/rover/docs/common-simple-object-avoidance.html)
+- [Object Avoidance with BendyRuler](https://ardupilot.org/rover/docs/common-oa-bendyruler.html)
 - [Proximity Sensors](https://ardupilot.org/rover/docs/common-proximity-landingpage.html)
 - [最新Rangefinderパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_RangeFinder/AP_RangeFinder_Params.cpp)
 - [最新SITL Rangefinderドライバ](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_RangeFinder/AP_RangeFinder_SITL.cpp)
 - [最新Simple Avoidanceパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AC_Avoidance/AC_Avoid.cpp)
+- [最新BendyRulerパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AC_Avoidance/AP_OABendyRuler.cpp)
+- [最新OA Path Plannerパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AC_Avoidance/AP_OAPathPlanner.cpp)
+- [最新OA Databaseパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AC_Avoidance/AP_OADatabase.cpp)
