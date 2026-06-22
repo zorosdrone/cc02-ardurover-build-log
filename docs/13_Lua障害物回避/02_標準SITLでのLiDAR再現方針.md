@@ -116,48 +116,6 @@ module load proximity
 
 `DISTANCE_SENSOR.current_distance`はcm単位である。`module load proximity`では、前方1点だけがProximity情報として表示される。
 
-### 4.1 Mission Plannerで前方距離を表示
-
-Mission Plannerでは、前方Rangefinderの`DISTANCE_SENSOR.id=0`が`rangefinder1`へ割り当てられる。表示単位はcmである。
-
-#### MAVLink Inspectorで生値をグラフ表示
-
-1. MAVLink Inspectorを開く
-2. `Vehicle 1` → `Comp 1` → `DISTANCE_SENSOR`を展開する
-3. `current_distance`を選択する
-4. `Graph It`を押す
-
-この方法はMAVLinkの生値をそのまま確認する。確認画面の例では次の値を受信している。
-
-| フィールド | 値 | 意味 |
-| --- | ---: | --- |
-| `id` | 0 | 1台目のRangefinder。Mission Plannerでは`rangefinder1` |
-| `orientation` | 0 | 前方 |
-| `current_distance` | 193 | 193 cm、すなわち1.93 m |
-| `max_distance` | 5000 | 5000 cm、すなわち50 m |
-| 更新周期 | 約3.7 Hz | 画面で確認した受信レート |
-
-#### Quickタブへ常時数値表示
-
-1. `Flight Data`を開く
-2. 画面下部の`Quick`タブを開く
-3. 変更する数値タイルをダブルクリックする
-4. 一覧から`RangeFinder1 (cm)`を選択する
-
-Quickタイルには`193`のようにcm単位で表示される。mへ読み替える場合は100で割る。
-
-前向きセンサーでは`sonarrange`を選ばない。`sonarrange`はMission Planner内で高度用Rangefinderとして扱われる項目であり、本試験の前向き`DISTANCE_SENSOR.id=0`は`rangefinder1`で確認する。
-
-#### Tuningグラフへ表示
-
-1. `Flight Data`で`Tuning`をチェックしてグラフを表示する
-2. Tuningグラフをダブルクリックする
-3. 項目一覧から`rangefinder1`をチェックする
-4. 停止挙動も同時に見る場合は`groundspeed`もチェックする
-5. 単位差で線が見づらい場合は、片方の項目を右クリックして右側Y軸へ割り当てる
-
-Tuningの項目選択画面では、Quickタブの`RangeFinder1 (cm)`ではなく内部名の`rangefinder1`と表示される。`rangefinder1`はcm、`groundspeed`はMission Plannerの速度表示単位なので、同じY軸へ重ねず左右のY軸へ分けると確認しやすい。
-
 ### センサー確認の合格条件
 
 - MAVProxyマップへ仮想ポストが表示される
@@ -177,6 +135,11 @@ param set AVOID_BEHAVE 1
 param set AVOID_BACKUP_SPD 0
 param set OA_TYPE 0
 reboot
+
+script /tmp/post-locations.scr
+module load graph
+graph DISTANCE_SENSOR.current_distance
+module load proximity
 ```
 
 | パラメータ | 値 | 意味 |
@@ -317,7 +280,7 @@ SITL用の`RNGFND1_TYPE=100`、`RNGFND1_MIN`、`RNGFND1_MAX`を実機へ書き�
 
 | ID | モード | 結果 | 証拠・補足 |
 | --- | --- | --- | --- |
-| `STD-FRONT-03` | `ACRO` | 合格 | ArduPilot標準Simple Object Avoidanceによる障害物前停止を確認。Mission PlannerのMAVLink Inspectorで`DISTANCE_SENSOR.id=0`、`orientation=0`、`current_distance=193 cm`を確認 |
+| `STD-FRONT-03` | `ACRO` | 合格 | ArduPilot標準Simple Object Avoidanceによる障害物前停止を確認。Mission Plannerでの距離表示経路は[前方距離表示確認](MissionPlanner_前方距離表示確認.md)を参照 |
 
 各試験で最低限、次を記録する。
 
@@ -332,6 +295,7 @@ SITL用の`RNGFND1_TYPE=100`、`RNGFND1_MIN`、`RNGFND1_MAX`を実機へ書き�
 ## 関連資料
 
 - [Lua障害物回避プロジェクト概要](README.md)
+- [Mission Plannerで前方距離を表示する](MissionPlanner_前方距離表示確認.md)
 - [Rover SITL前方Rangefinder / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)
 - [仮想ポストKML表示補助](05_仮想ポストKML表示補助.md)
 - [rover-gcsのWebots連携ガイド](https://github.com/zorosdrone/rover-gcs/blob/main/docs/webots_setup.md)
@@ -344,5 +308,3 @@ SITL用の`RNGFND1_TYPE=100`、`RNGFND1_MIN`、`RNGFND1_MAX`を実機へ書き�
 - [最新Rangefinderパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_RangeFinder/AP_RangeFinder_Params.cpp)
 - [最新SITL Rangefinderドライバ](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_RangeFinder/AP_RangeFinder_SITL.cpp)
 - [最新Simple Avoidanceパラメータ定義](https://github.com/ArduPilot/ardupilot/blob/master/libraries/AC_Avoidance/AC_Avoid.cpp)
-- [Mission PlannerのDISTANCE_SENSOR割当実装](https://github.com/ArduPilot/MissionPlanner/blob/master/ExtLibs/ArduPilot/CurrentState.cs)
-- [Mission PlannerのQuick・Tuningグラフ実装](https://github.com/ArduPilot/MissionPlanner/blob/master/GCSViews/FlightData.cs)
