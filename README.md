@@ -132,7 +132,8 @@ Git LFS対象:
 - [標準ArduRover SITLで前方LiDARによる障害物前停止を試す](docs/13_Lua障害物回避/02_標準SITLでのLiDAR再現方針.md)
 - [LuaとC++独自モードの実装判断](docs/13_Lua障害物回避/03_LuaとC++の実装判断.md)
 - [Guided位置指定対応Lua障害物回避仕様書](docs/13_Lua障害物回避/04_Guided位置指定対応Lua障害物回避仕様書.md)
-- [仮想ポストKML表示補助](docs/13_Lua障害物回避/05_仮想ポストKML表示補助.md)
+- [SITL Luaサンプルスクリプト](docs/13_Lua障害物回避/05_SITL_Luaサンプルスクリプト.md)
+- [仮想ポストKML表示補助](docs/13_Lua障害物回避/補助機能/10_MP_仮想ポストKML表示補助.md)
 
 ### 参照
 
