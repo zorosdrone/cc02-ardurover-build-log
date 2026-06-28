@@ -1,0 +1,192 @@
+# 2026-06-29 SITL Lua Guided回避 再開メモ
+
+更新日: 2026-06-29
+
+対象: Rover SITL、Lua Scripting、前方Rangefinder、Guided回避サンプル
+
+## 今日の到達点
+
+1番目の監視サンプル `20260628_luaoa_rangefinder_watch.lua` は、前方Rangefinderを読み取り、`warn zone` / `stop zone` をGCSへ表示できた。
+実行結果画像は次に保存済み。
+
+```text
+docs/13_Lua障害物回避/images/sitl-lua-rangefinder-watch-stop-zone.png
+```
+
+2番目の回避サンプル `20260628_luaoa_min_guided_avoid.lua` は、`SLOW`、`STOP`、`BACKUP`、`TURN`、`RECHECK`、`RESUME` まで状態遷移するところまで確認した。
+ただし、回避後にTargetへ戻らない問題が残っている。
+
+## 現在のLua保存元
+
+```text
+参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua
+```
+
+現在の識別文字列:
+
+```lua
+local SCRIPT_VERSION = "20260629-target-resume-required-v4"
+```
+
+起動時に次のログが出れば、最新Luaが読み込まれている。
+
+```text
+LUAOA: loaded 20260629-target-resume-required-v4
+```
+
+## 現在の主な回避パラメータ
+
+```lua
+local WARN_CM = 800
+local STOP_CM = 400
+local RESUME_CM = 1000
+local REQUIRED_COUNT = 3
+
+local RUN_SPEED_MS = 1.0
+local SLOW_SPEED_MS = 0.3
+local BACK_SPEED_MS = 0.45
+local TURN_SPEED_MS = 0.45
+local TURN_RATE_DEG_S = 35
+
+local STOP_HOLD_MS = 1500
+local BACK_MS = 4500
+local TURN_MS = 4500
+local MAX_TRY = 5
+```
+
+意図:
+
+- 8 mで減速
+- 4 mで停止
+- 約2.0 m後退
+- 強めに4.5秒旋回
+- 前方10 m以上で復帰判定
+- 最大5回まで再試行
+
+## 今日分かったこと
+
+`reboot` だけでは、Lua差し替えが確実に反映されないことがあった。
+古いLuaが動いているかは、ログと時間差で判別できる。
+
+古い版の兆候:
+
+```text
+LUAOA: RESUME -> FAULT: resume speed failed
+LUAOA: FAULT resume speed failed
+```
+
+または、`BACKUP -> TURN` が約1秒で出る場合。
+現在の強化版では `BACK_MS = 4500` なので、`BACKUP -> TURN` は約4.5秒後になるはず。
+
+確実に反映するには、MAVProxyの `reboot` ではなく、`sim_vehicle.py` ごと停止して起動し直す。
+
+## Target復帰に関する現状
+
+問題は、LuaがGuided目標を保存できていないこと。
+
+次のログが出る場合、LuaからTargetが見えていない。
+
+```text
+LUAOA: guided target not visible to Lua; safety-only avoid, no resume target
+```
+
+この状態では、回避後にTargetへ戻れない。
+現在のv4では、Targetが保存されていない場合に「速度だけ戻す」動作はやめ、`RESUME`で停止側へ倒す。
+
+期待する安全側ログ:
+
+```text
+LUAOA: FAULT no saved target for resume
+```
+
+Target復帰まで確認したい場合、回避開始前に次のログが必要。
+
+```text
+LUAOA: ... guided target ready
+```
+
+## 次回の再開手順
+
+WSLで、SITL側へ最新Luaをコピーする。
+
+```bash
+cd ~/ardupilot
+cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua scripts/
+```
+
+読み込まれる予定のファイルを確認する。
+
+```bash
+grep -n "SCRIPT_VERSION\|BACK_MS\|TURN_MS\|resume speed failed" scripts/20260628_luaoa_min_guided_avoid.lua
+```
+
+期待値:
+
+```text
+SCRIPT_VERSION = "20260629-target-resume-required-v4"
+BACK_MS = 4500
+TURN_MS = 4500
+```
+
+`resume speed failed` は出ないこと。
+
+試験中は `scripts/` 直下にこのLuaだけ置く。
+
+```bash
+ls ~/ardupilot/scripts
+```
+
+`ahrs-print-angle-and-rates.lua` など他の `.lua` がある場合は、試験中だけ退避する。
+
+```bash
+mkdir -p ~/ardupilot/scripts_disabled
+mv ~/ardupilot/scripts/ahrs-print-angle-and-rates.lua ~/ardupilot/scripts_disabled/
+```
+
+その後、`sim_vehicle.py` を起動し直す。
+
+```bash
+cd ~/ardupilot
+Tools/autotest/sim_vehicle.py -v Rover --console --map \
+  -l 51.8752066,14.6487840,54.15,0
+```
+
+MAVProxyで、仮想ポストと距離表示を出す。
+
+```text
+script /tmp/post-locations.scr
+module load graph
+graph DISTANCE_SENSOR.current_distance
+```
+
+起動直後に次を確認する。
+
+```text
+LUAOA: loaded 20260629-target-resume-required-v4
+```
+
+Guided目標を送った後、できれば次を確認する。
+
+```text
+LUAOA: ... guided target ready
+```
+
+これが出ない場合は、Target復帰確認ではなく、安全側停止確認として扱う。
+
+## 次回の確認観点
+
+- 最新Luaが本当に読み込まれているか
+- `BACKUP -> TURN` が約4.5秒後になっているか
+- 4 m手前で `STOP` に入るか
+- 回避後、Targetが保存されている場合だけ `target restored` になるか
+- Targetが保存されていない場合、`FAULT no saved target for resume` で停止側に倒れるか
+- Mission Planner側に `FAILSAFE InternalError 0x100000` が出る条件を切り分ける
+
+## 関連ファイル
+
+```text
+docs/13_Lua障害物回避/05_SITL_Luaサンプルスクリプト.md
+参考資料/ArduPilot/scripts/20260628_luaoa_rangefinder_watch.lua
+参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua
+docs/13_Lua障害物回避/images/sitl-lua-rangefinder-watch-stop-zone.png
+```

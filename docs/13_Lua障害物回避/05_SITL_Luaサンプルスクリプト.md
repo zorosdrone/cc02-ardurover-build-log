@@ -1,12 +1,12 @@
 # SITL Luaサンプルスクリプト
 
-更新日: 2026-06-28
+更新日: 2026-06-29
 
 対象: Rover SITL、Lua Scripting、前方Rangefinder、Guided制御
 
 ## 結論
 
-この文書は、DeepWiki検索結果をきっかけに作成したLuaサンプルの説明である。
+この文書は、保存済みLuaサンプルをRover SITLで実行するための手順である。
 
 保存しているサンプルは、`OA_TYPE=1` / BendyRulerを使うものではない。前方RangefinderをLuaで読み、必要に応じてGuided向けAPIを試すためのSITL学習用スクリプトとして扱う。
 
@@ -26,24 +26,144 @@ ardupilot/scripts/20260628_luaoa_rangefinder_watch.lua
 ardupilot/scripts/20260628_luaoa_min_guided_avoid.lua
 ```
 
-起動前にScriptingを有効化し、再起動する。
+起動前にScriptingを有効化し、再起動する。Luaは`scripts`直下の`.lua`を読み込むため、確認するサンプルは1本ずつ置く。
 
 ```text
 SCR_ENABLE=1
 ```
 
-## DeepWikiサンプルとの関係
+## 実行手順
 
-DeepWikiの元サンプルは、「障害物が近い場合にLuaからRoverへ回避指令を出す」という考え方を示す概念例として有用である。
+### 1. サンプルをSITL側へ置く
 
-ただし、このリポジトリでは次の理由で、そのまま配置用Luaにはしない。
+WSLでArduPilot作業ディレクトリへ移動し、確認したいLuaを`scripts`直下へ置く。まずは監視専用サンプルだけを置く。
 
-- 距離取得が`proximity:get_obstacle_distance()`中心の概念例で、CC-02のArduRover 4.6.3向け説明で使っている`rangefinder:distance_cm_orient(0)`と違う
-- 近距離で即座に操舵・スロットル指令を出す構成で、目的地保存、停止保持、API失敗時の停止処理が不足している
-- 仕様04では、前方センサー1個の制約、Guided目的地復帰、Native OAとの分離を明確にしている
-- `OA_TYPE=1` / BendyRulerの経路計画と、Luaによる直接制御を混ぜると試験結果を切り分けにくい
+```bash
+cd ~/ardupilot
+mkdir -p scripts
+cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/参考資料/ArduPilot/scripts/20260628_luaoa_rangefinder_watch.lua scripts/
+```
 
-そのため、ここではDeepWikiの考え方を残しつつ、CC-02側の前提に合わせて2段階のサンプルに分けた。
+`20260628_luaoa_min_guided_avoid.lua`や`rover-quicktune.lua`など、別のLuaを同時に`scripts`直下へ置かない。複数のLuaが同時に動くと、速度指令やメッセージの原因を切り分けにくい。
+
+### 2. Rover SITLを起動する
+
+```bash
+Tools/autotest/sim_vehicle.py -v Rover --console --map \
+  -l 51.8752066,14.6487840,54.15,0
+```
+
+MAVProxyコンソールで、試験前のパラメータを保存し、Scriptingと前方Rangefinderを有効にする。
+
+```text
+param save /tmp/cc02_sitl_before_lua.param
+
+param set SCR_ENABLE 1
+param set SIM_SONAR_ROT 0
+param set RNGFND1_TYPE 100
+param set RNGFND1_MIN 0
+param set RNGFND1_MAX 50
+param set RNGFND1_ORIENT 0
+
+param set PRX1_TYPE 4
+param set AVOID_ENABLE 0
+param set OA_TYPE 0
+reboot
+```
+
+再接続後、仮想ポストをMAVProxyの地図へ表示し、距離表示を確認する。
+
+```text
+script /tmp/post-locations.scr
+module load graph
+graph DISTANCE_SENSOR.current_distance
+param show SCR_ENABLE
+param show RNGFND1_ORIENT
+param show AVOID_ENABLE
+param show OA_TYPE
+```
+
+### 3. 監視サンプルを確認する
+
+再起動後に、GCSメッセージへ次のような表示が出ることを確認する。
+
+```text
+LUAOA: clear ... cm
+LUAOA: warn zone ... cm
+LUAOA: stop zone ... cm
+```
+
+実行結果例:
+
+![監視サンプルでstop zoneに入ったMAVProxy表示](images/sitl-lua-rangefinder-watch-stop-zone.png)
+
+確認すること:
+
+- MAVProxyの地図に仮想ポストが表示される
+- `DISTANCE_SENSOR.current_distance`とLuaメッセージの距離が大きくずれていない
+- ポストへ近づくと`clear`から`warn zone`、`stop zone`へ変わる
+- Roverの速度、モード、操舵がLuaによって変わらない
+
+監視サンプルで距離が読めない場合は、Guided回避サンプルへ進まない。
+
+### 4. Guided回避サンプルへ切り替える
+
+監視サンプルを外し、最低限Guided回避サンプルだけを置く。
+
+```bash
+cd ~/ardupilot
+rm -f scripts/20260628_luaoa_rangefinder_watch.lua
+cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua scripts/
+```
+
+MAVProxyで再起動する。
+
+```text
+reboot
+```
+
+再接続後、GuidedにしてArmingする。
+
+```text
+mode guided
+arm throttle
+```
+
+Mission Plannerの地図で、Roverから見て仮想ポストの向こう側をGuided目標に指定する。画面表示に応じて、地図の右クリックメニューから`Fly To Here`または`ここに移動`を選ぶ。
+
+`LUAOA: guided target not visible to Lua; safety-only avoid, no resume target`が出る場合は、LuaがGuided目標を保存できていない。この状態では回避後にTargetへ復帰できないため、`RESUME`で`FAULT no saved target for resume`として停止側へ倒す。Target復帰まで確認したい場合は、回避開始前に`LUAOA: ... guided target ready`が出ていることを確認する。
+
+確認すること:
+
+- 障害物が遠い間は`CLEAR`または通常走行の状態になる
+- 障害物へ近づくと`SLOW`、`STOP`へ移る
+- 停止後、約2.0 m分の`BACKUP`、強めの固定方向`TURN`、`RECHECK`へ進む
+- 前方距離が戻ると`RESUME`になり、保存したGuided目標がある場合だけ戻ろうとする
+- Rangefinderデータなし、保存済みTargetなし、API失敗、試行回数超過では`FAULT`になり停止側へ倒れる
+
+このサンプルは、前方センサー1個だけで安全な左右回避を選ぶものではない。状態機械とAPI呼び出しがSITLで動くかを見るための確認に留める。
+
+### 5. 終了して元に戻す
+
+試験を終えるときは、まず停止してDisarmする。
+
+```text
+mode hold
+disarm
+```
+
+Luaサンプルを外し、保存したパラメータへ戻す。
+
+```bash
+cd ~/ardupilot
+rm -f scripts/20260628_luaoa_min_guided_avoid.lua
+```
+
+```text
+param load /tmp/cc02_sitl_before_lua.param
+reboot
+```
+
 
 ## サンプル1: 前方Rangefinder監視
 
@@ -74,7 +194,7 @@ DeepWikiの元サンプルは、「障害物が近い場合にLuaからRoverへ�
 参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua
 ```
 
-目的は、DeepWikiサンプルの「障害物を検出したらLuaで回避指令を出す」考え方を、CC-02向けAPIでSITL確認することである。
+目的は、障害物を検出したときにLuaからGuided向けAPIを呼び出す流れを、CC-02向けの前方Rangefinder構成でSITL確認することである。
 
 このスクリプトは、Guided中に前方障害物を検出した場合に、次の流れを試す。
 
@@ -94,7 +214,7 @@ CLEAR
 - `vehicle:get_target_location()`でGuided目的地を保存する
 - `rangefinder:distance_cm_orient(0)`で前方距離を監視する
 - `vehicle:set_desired_speed()`で警戒時の減速を試す
-- `vehicle:set_desired_turn_rate_and_speed()`で停止、短時間後退、固定方向旋回を試す
+- `vehicle:set_desired_turn_rate_and_speed()`で停止、約2.0 m後退、強めの固定方向旋回を試す
 - `vehicle:set_target_location()`で保存した目的地への復帰を試す
 - API失敗、センサー喪失、最大試行回数到達時は`FAULT`として停止指令を出す
 
@@ -110,7 +230,7 @@ CLEAR
 | `SCP-02` 目的地保持 | 対応なし | 簡易対応 |
 | `SCP-03` 距離監視 | 対応 | 対応 |
 | `SCP-04` 減速・停止 | 表示のみ | 簡易対応 |
-| `SCP-05` 限定回避 | 対応なし | 短時間後退・固定旋回のみ |
+| `SCP-05` 限定回避 | 対応なし | 約2.0 m後退・強めの固定旋回のみ |
 | `SCP-06` 目的地復帰 | 対応なし | 簡易対応 |
 | `SCP-07` 異常処理 | データなし表示のみ | 簡易`FAULT` |
 | `SCP-08` ログ | 距離帯表示のみ | 状態遷移と異常表示 |
@@ -133,7 +253,7 @@ CLEAR
 
 ## REPLで試す意味
 
-DeepWikiの「学習目的であれば、REPLを使って各APIを対話的に試す」という助言は、長いLuaファイルを投入する前に、小さいAPI呼び出しで戻り値と単位を確認するという意味で扱う。
+長いLuaファイルを投入する前に、小さいAPI呼び出しで戻り値と単位を確認しておく。
 
 先に確認したいAPI:
 
@@ -158,7 +278,7 @@ REPLは実機走行判断の代わりではない。実機ではまずタイヤ�
 3. 警戒距離で`SLOW`へ入る
 4. 停止距離で`STOP`へ入り、速度0指令を継続する
 5. `BACKUP`、`TURN`、`RECHECK`が意図した時間だけ実行される
-6. 前方安全時に`RESUME`へ入り、保存した目的地を再設定できる
+6. 前方安全時に`RESUME`へ入り、保存した目的地がある場合だけ再設定できる
 7. Rangefinder喪失、API失敗、最大試行回数到達で`FAULT`へ入る
 8. モード変更またはDisarmでLuaが回避シーケンスを中止する
 9. QuikTuneなど他のLuaスクリプトと同時実行しない
@@ -168,7 +288,7 @@ REPLは実機走行判断の代わりではない。実機ではまずタイヤ�
 
 ## 参照
 
-- DeepWiki検索結果: <https://deepwiki.com/search/roversitllua_9a1a8cdc-c57c-4af6-b18b-1ef83728b137>
+- [2026-06-29 SITL Lua Guided回避 再開メモ](../../logs/test_runs/20260629_01_sitl_lua_guided_avoid_resume_handoff.md)
 - ArduPilot master `Rover.cpp`: <https://github.com/ArduPilot/ardupilot/blob/master/Rover/Rover.cpp>
 - ArduPilot Scripting README: <https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_Scripting/README.md>
 - [Guided位置指定対応Lua障害物回避仕様書](04_Guided位置指定対応Lua障害物回避仕様書.md)

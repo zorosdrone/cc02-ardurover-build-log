@@ -85,6 +85,8 @@ param show OA_TYPE
 param show OA_BR_LOOKAHEAD
 param show OA_MARGIN_MAX
 param show WP_SPEED
+
+arm throttle
 ```
 
 次を確認する。
