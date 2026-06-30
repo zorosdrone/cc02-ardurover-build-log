@@ -1,4 +1,4 @@
-# 最低限Guided回避Lua解説
+# MinGuided回避Lua解説
 
 更新日: 2026-06-30
 

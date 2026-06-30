@@ -132,7 +132,7 @@ Git LFS対象:
 - [開発検討: LuaとC++独自モードの実装判断](docs/03_Lua障害物回避/今後の開発検討/LuaとC++の実装判断.md)
 - [開発検討: Guided位置指定対応Lua障害物回避仕様書](docs/03_Lua障害物回避/今後の開発検討/Guided位置指定対応Lua障害物回避仕様書.md)
 - [SITL Luaサンプルスクリプト](docs/03_Lua障害物回避/05_SITL_Luaサンプルスクリプト.md)
-- [最低限Guided回避Lua解説](docs/03_Lua障害物回避/06_最低限Guided回避Lua解説.md)
+- [最低限Guided回避Lua解説](docs/03_Lua障害物回避/06_MinGuided回避Lua解説.md)
 - [仮想ポストKML表示補助](docs/03_Lua障害物回避/補助機能/10_MP_仮想ポストKML表示補助.md)
 
 ### 参照
