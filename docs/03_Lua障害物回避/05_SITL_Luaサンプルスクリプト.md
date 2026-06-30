@@ -43,7 +43,7 @@ WSLでArduPilot作業ディレクトリへ移動し、確認したいLuaを`scri
 ```bash
 cd ~/ardupilot
 mkdir -p scripts
-cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/docs/03_Lua障害物回避/Scripts/luaoa_rangefinder_watch.lua scripts/
+cp /mnt/c/path/to/cc02-ardurover-build-log/docs/03_Lua障害物回避/Scripts/luaoa_rangefinder_watch.lua scripts/
 ```
 
 `luaoa_min_guided_avoid.lua`や`rover-quicktune.lua`など、別のLuaを同時に`scripts`直下へ置かない。複数のLuaが同時に動くと、速度指令やメッセージの原因を切り分けにくい。
@@ -124,7 +124,7 @@ GuidedでFly Toを送信した後のTarget診断込みの実行例:
 ```bash
 cd ~/ardupilot
 rm -f scripts/luaoa_rangefinder_watch.lua
-cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua scripts/
+cp /mnt/c/path/to/cc02-ardurover-build-log/docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua scripts/
 ```
 
 MAVProxyで再起動する。

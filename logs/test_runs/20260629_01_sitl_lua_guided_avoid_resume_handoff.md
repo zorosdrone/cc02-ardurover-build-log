@@ -141,7 +141,7 @@ WSLで、SITL側へ最新Luaをコピーする。
 
 ```bash
 cd ~/ardupilot
-cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua scripts/
+cp /mnt/c/path/to/cc02-ardurover-build-log/docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua scripts/
 ```
 
 読み込まれる予定のファイルを確認する。
