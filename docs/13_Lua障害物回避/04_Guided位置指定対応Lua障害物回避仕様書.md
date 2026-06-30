@@ -383,7 +383,6 @@ params/tuned/YYYYMMDD_01_guided_lua_avoid_test.param
 ## 18. 関連資料
 
 - [Lua障害物回避プロジェクト概要](README.md)
-- [Rover SITL前方Rangefinder / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)
-- [標準SITLでのLiDAR再現方針](02_標準SITLでのLiDAR再現方針.md)
+- [Rover SITL前方Rangefinder / 標準OA / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)
 - [LuaとC++独自モードの実装判断](03_LuaとC++の実装判断.md)
 - [Guided障害物停止確認](../../logs/test_runs/20260613_07_guided_obstacle_stop_check.md)

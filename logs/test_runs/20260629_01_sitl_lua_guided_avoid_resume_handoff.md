@@ -4,6 +4,36 @@
 
 対象: Rover SITL、Lua Scripting、前方Rangefinder、Guided回避サンプル
 
+## 2026-06-30 追記
+
+Target復帰できなかった主原因は、Lua状態遷移ではなく、標準Rover側で`vehicle:get_target_location()`がTargetを返せないことと判断した。
+
+対策として、`20260628_luaoa_min_guided_avoid.lua`を更新し、Guided WP走行中に次の情報からTarget座標を復元するようにした。
+
+```lua
+vehicle:get_wp_distance_m()
+vehicle:get_wp_bearing_deg()
+ahrs:get_location()
+Location:offset_bearing()
+```
+
+新しい識別文字列:
+
+```lua
+local SCRIPT_VERSION = "20260630-wp-vector-target-v6"
+```
+
+期待ログ:
+
+```text
+LUAOA: loaded 20260630-wp-vector-target-v6
+LUAOA: guided target ready via wp-vector
+LUAOA: RECHECK -> RESUME
+LUAOA: RESUME -> CLEAR: target restored
+```
+
+また、`restore_run_speed()`から`set_desired_turn_rate_and_speed(0, RUN_SPEED_MS)`へのフォールバックを削除した。`set_target_location()`成功直後にTurnRateAndSpeedへ戻してWP制御を解除しないためである。
+
 ## 今日の到達点
 
 1番目の監視サンプル `20260628_luaoa_rangefinder_watch.lua` は、前方Rangefinderを読み取り、`warn zone` / `stop zone` をGCSへ表示できた。
@@ -14,7 +44,7 @@ docs/13_Lua障害物回避/images/sitl-lua-rangefinder-watch-stop-zone.png
 ```
 
 2番目の回避サンプル `20260628_luaoa_min_guided_avoid.lua` は、`SLOW`、`STOP`、`BACKUP`、`TURN`、`RECHECK`、`RESUME` まで状態遷移するところまで確認した。
-ただし、回避後にTargetへ戻らない問題が残っている。
+2026-06-29時点ではTargetへ戻らない問題が残っていたが、2026-06-30にWP距離・方位からTargetを復元する修正を入れた。
 
 ## 現在のLua保存元
 
@@ -25,21 +55,21 @@ docs/13_Lua障害物回避/images/sitl-lua-rangefinder-watch-stop-zone.png
 現在の識別文字列:
 
 ```lua
-local SCRIPT_VERSION = "20260629-target-resume-required-v4"
+local SCRIPT_VERSION = "20260630-wp-vector-target-v6"
 ```
 
 起動時に次のログが出れば、最新Luaが読み込まれている。
 
 ```text
-LUAOA: loaded 20260629-target-resume-required-v4
+LUAOA: loaded 20260630-wp-vector-target-v6
 ```
 
 ## 現在の主な回避パラメータ
 
 ```lua
-local WARN_CM = 800
-local STOP_CM = 400
-local RESUME_CM = 1000
+local WARN_M = 8.0
+local STOP_M = 4.0
+local RESUME_M = 10.0
 local REQUIRED_COUNT = 3
 
 local RUN_SPEED_MS = 1.0
@@ -82,27 +112,27 @@ LUAOA: FAULT resume speed failed
 
 ## Target復帰に関する現状
 
-問題は、LuaがGuided目標を保存できていないこと。
+2026-06-29時点の問題は、LuaがGuided目標を保存できていないことだった。
 
-次のログが出る場合、LuaからTargetが見えていない。
+原因は、標準Roverでは`vehicle:get_target_location()`がTargetを返せないこと。2026-06-30版では、まず正式APIを試し、失敗した場合はWP距離・方位からTargetを復元する。
 
 ```text
-LUAOA: guided target not visible to Lua; safety-only avoid, no resume target
+LUAOA: guided target ready via wp-vector
 ```
 
-この状態では、回避後にTargetへ戻れない。
-現在のv4では、Targetが保存されていない場合に「速度だけ戻す」動作はやめ、`RESUME`で停止側へ倒す。
+このログがFly To送信後に出れば、Lua側で復帰Targetを保存できている。
 
-期待する安全側ログ:
+復帰成功時の期待ログ:
 
 ```text
-LUAOA: FAULT no saved target for resume
+LUAOA: RECHECK -> RESUME
+LUAOA: RESUME -> CLEAR: target restored
 ```
 
-Target復帰まで確認したい場合、回避開始前に次のログが必要。
+Fly To送信後もTarget保存ログが出ない場合は、Target復帰試験へ進まない。
 
 ```text
-LUAOA: ... guided target ready
+LUAOA: waiting for guided target
 ```
 
 ## 次回の再開手順
@@ -117,18 +147,21 @@ cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/参考資料/ArduPilot/scr
 読み込まれる予定のファイルを確認する。
 
 ```bash
-grep -n "SCRIPT_VERSION\|BACK_MS\|TURN_MS\|resume speed failed" scripts/20260628_luaoa_min_guided_avoid.lua
+grep -n "SCRIPT_VERSION\|WARN_M\|STOP_M\|RESUME_M\|BACK_MS\|TURN_MS\|set_desired_turn_rate_and_speed(0, RUN_SPEED_MS)" scripts/20260628_luaoa_min_guided_avoid.lua
 ```
 
 期待値:
 
 ```text
-SCRIPT_VERSION = "20260629-target-resume-required-v4"
+SCRIPT_VERSION = "20260630-wp-vector-target-v6"
+WARN_M = 8.0
+STOP_M = 4.0
+RESUME_M = 10.0
 BACK_MS = 4500
 TURN_MS = 4500
 ```
 
-`resume speed failed` は出ないこと。
+`set_desired_turn_rate_and_speed(0, RUN_SPEED_MS)` は出ないこと。速度復帰でTurnRateAndSpeedへ戻すフォールバックは削除済み。
 
 試験中は `scripts/` 直下にこのLuaだけ置く。
 
@@ -162,24 +195,25 @@ graph DISTANCE_SENSOR.current_distance
 起動直後に次を確認する。
 
 ```text
-LUAOA: loaded 20260629-target-resume-required-v4
+LUAOA: loaded 20260630-wp-vector-target-v6
 ```
 
-Guided目標を送った後、できれば次を確認する。
+Guided目標を送った後、次を確認する。
 
 ```text
-LUAOA: ... guided target ready
+LUAOA: guided target ready via wp-vector
 ```
 
-これが出ない場合は、Target復帰確認ではなく、安全側停止確認として扱う。
+これが出ない場合は、Target復帰確認ではなく、Guided目標、Arm状態、WP距離・方位APIの確認へ戻る。
 
 ## 次回の確認観点
 
 - 最新Luaが本当に読み込まれているか
 - `BACKUP -> TURN` が約4.5秒後になっているか
 - 4 m手前で `STOP` に入るか
-- 回避後、Targetが保存されている場合だけ `target restored` になるか
-- Targetが保存されていない場合、`FAULT no saved target for resume` で停止側に倒れるか
+- Fly To送信後に `guided target ready via wp-vector` が出るか
+- 回避後、`RESUME -> CLEAR: target restored` になるか
+- 速度復帰失敗時にTurnRateAndSpeedへ切り替え直さないか
 - Mission Planner側に `FAILSAFE InternalError 0x100000` が出る条件を切り分ける
 
 ## 関連ファイル

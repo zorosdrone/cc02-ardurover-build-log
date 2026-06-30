@@ -1,8 +1,8 @@
 # SITL Luaサンプルスクリプト
 
-更新日: 2026-06-29
+更新日: 2026-06-30
 
-対象: Rover SITL、Lua Scripting、前方Rangefinder、Guided制御
+対象: Rover最新版SITL、Lua Scripting、前方Rangefinder、Guided制御
 
 ## 結論
 
@@ -10,13 +10,15 @@
 
 保存しているサンプルは、`OA_TYPE=1` / BendyRulerを使うものではない。前方RangefinderをLuaで読み、必要に応じてGuided向けAPIを試すためのSITL学習用スクリプトとして扱う。
 
+2026-06-30時点では、最新版SITL向けに`rangefinder:distance_orient(0)`を使い、距離単位はmで統一する。Rover 4.6系向けの`rangefinder:distance_cm_orient(0)`は、このサンプルでは使わない。
+
 実機投入用の完成スクリプトではない。実機では、通常運用正本のNative Simple Object Avoidanceを安全側の基準として残し、Lua制御はSITLで挙動と失敗時動作を確認してから分離試験する。
 
 ## 保存しているサンプル
 
 | ファイル | 用途 | 走行指令 | 位置づけ |
 | --- | --- | --- | --- |
-| [20260628_luaoa_rangefinder_watch.lua](../../参考資料/ArduPilot/scripts/20260628_luaoa_rangefinder_watch.lua) | 前方Rangefinderの読み取り確認 | なし | 最初に使う監視専用サンプル |
+| [20260628_luaoa_rangefinder_watch.lua](../../参考資料/ArduPilot/scripts/20260628_luaoa_rangefinder_watch.lua) | 前方Rangefinderの読み取り確認、Target取得可否の診断 | なし | 最初に使う監視専用サンプル |
 | [20260628_luaoa_min_guided_avoid.lua](../../参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua) | 最低限のGuided回避確認 | あり | SITLで状態機械の骨格を見るサンプル |
 
 どちらも、SITLではArduPilot作業ディレクトリ直下の`scripts`へ置いて使う。
@@ -88,9 +90,10 @@ param show OA_TYPE
 再起動後に、GCSメッセージへ次のような表示が出ることを確認する。
 
 ```text
-LUAOA: clear ... cm
-LUAOA: warn zone ... cm
-LUAOA: stop zone ... cm
+LUAOA: clear ... m
+LUAOA: warn zone ... m
+LUAOA: stop zone ... m
+LUAOA: target direct=nil wp=ok ...m ...d
 ```
 
 実行結果例:
@@ -102,9 +105,11 @@ LUAOA: stop zone ... cm
 - MAVProxyの地図に仮想ポストが表示される
 - `DISTANCE_SENSOR.current_distance`とLuaメッセージの距離が大きくずれていない
 - ポストへ近づくと`clear`から`warn zone`、`stop zone`へ変わる
+- Fly To送信後に、Targetが`get_target_location()`で直接読めるか、またはWP距離・方位で復元できるかが`target`ログへ出る
 - Roverの速度、モード、操舵がLuaによって変わらない
 
 監視サンプルで距離が読めない場合は、Guided回避サンプルへ進まない。
+監視サンプルでFly To送信後も`target direct=nil wp=ok`または`target direct=ok`が出ない場合も、Target復帰試験へ進まず、Guided目標、モード、Arm状態を確認する。
 
 ### 4. Guided回避サンプルへ切り替える
 
@@ -131,15 +136,24 @@ arm throttle
 
 Mission Plannerの地図で、Roverから見て仮想ポストの向こう側をGuided目標に指定する。画面表示に応じて、地図の右クリックメニューから`Fly To Here`または`ここに移動`を選ぶ。
 
-`LUAOA: guided target not visible to Lua; safety-only avoid, no resume target`が出る場合は、LuaがGuided目標を保存できていない。この状態では回避後にTargetへ復帰できないため、`RESUME`で`FAULT no saved target for resume`として停止側へ倒す。Target復帰まで確認したい場合は、回避開始前に`LUAOA: ... guided target ready`が出ていることを確認する。
+Fly To送信後、次のログが出ることを確認する。
+
+```text
+LUAOA: guided target ready via wp-vector
+```
+
+Rover masterでは`vehicle:get_target_location()`がLua APIとして存在していても、標準Rover側からは`nil`になることがある。そのため、このサンプルでは`vehicle:get_wp_distance_m()`、`vehicle:get_wp_bearing_deg()`、`ahrs:get_location()`からGuided Target座標を復元する。
+
+Fly Toを送る前はTargetがまだ無いため、起動直後にTarget保存ログが出ないこと自体は異常ではない。Fly To送信後も`guided target ready via wp-vector`が出ない場合は、Target復帰試験へ進まず、Guided目標、モード、Arm状態を確認する。
 
 確認すること:
 
 - 障害物が遠い間は`CLEAR`または通常走行の状態になる
 - 障害物へ近づくと`SLOW`、`STOP`へ移る
 - 停止後、約2.0 m分の`BACKUP`、強めの固定方向`TURN`、`RECHECK`へ進む
-- 前方距離が戻ると`RESUME`になり、保存したGuided目標がある場合だけ戻ろうとする
-- Rangefinderデータなし、保存済みTargetなし、API失敗、試行回数超過では`FAULT`になり停止側へ倒れる
+- 前方距離が戻ると`RESUME`になり、保存したGuided目標へ戻ろうとする
+- `RESUME -> CLEAR: target restored`が出る
+- Rangefinderデータなし、Target保存失敗、API失敗、試行回数超過では`FAULT`になり停止側へ倒れる
 
 このサンプルは、前方センサー1個だけで安全な左右回避を選ぶものではない。状態機械とAPI呼び出しがSITLで動くかを見るための確認に留める。
 
@@ -173,18 +187,29 @@ reboot
 参考資料/ArduPilot/scripts/20260628_luaoa_rangefinder_watch.lua
 ```
 
-目的は、Luaから前方Rangefinderを読めるか確認することである。
+目的は、Luaから前方Rangefinderを読めるか確認し、あわせてGuided TargetがLuaから見えるかを確認することである。
 
-このスクリプトは、前方0度のRangefinderを100 ms周期で読み、距離帯をGCSメッセージへ表示する。操舵、スロットル、速度、モード変更は一切行わない。
+このスクリプトは、前方0度のRangefinderを100 ms周期で読み、距離帯をGCSメッセージへ表示する。さらに、`vehicle:get_target_location()`でGuided Targetを直接読めるか確認し、直接読めない場合は`vehicle:get_wp_distance_m()`、`vehicle:get_wp_bearing_deg()`、`ahrs:get_location()`からTarget座標を復元できるかをログへ表示する。操舵、スロットル、速度、モード変更は一切行わない。
 
 主な確認内容:
 
 - `rangefinder:has_data_orient(0)`で前方センサーのデータ有無を確認できる
-- `rangefinder:distance_cm_orient(0)`で前方距離をcm単位で読める
+- `rangefinder:distance_orient(0)`で前方距離をm単位で読める
+- `vehicle:get_target_location()`がRoverでTargetを返すか確認できる
+- 直接Targetが読めない場合、WP距離・方位フォールバックが使えるか確認できる
 - `DISTANCE_SENSOR.current_distance`やMission Planner表示とLuaの表示値が一致する
 - 警戒距離、停止距離のしきい値判定が期待どおり出る
 
-このサンプルは、仕様04のうち`SCP-03`の距離監視に相当する入口である。減速、停止、後退、旋回、目的地復帰は行わない。
+Target診断ログの読み方:
+
+| ログ | 意味 |
+| --- | --- |
+| `LUAOA: target direct=ok` | `vehicle:get_target_location()`でGuided Targetを直接取得できる |
+| `LUAOA: target direct=nil wp=ok ...m ...d` | 直接APIは`nil`だが、現在位置、WP距離、WP方位からTargetを復元できる |
+| `LUAOA: target direct=nil wp=no-dist` | TargetまたはWP距離がまだ見えていない。Fly To送信前なら正常範囲 |
+| `LUAOA: target direct=err ...` | Lua API呼び出しがエラーになっている |
+
+このサンプルは、仕様04のうち`SCP-03`の距離監視と、`SCP-02`の入口診断に相当する。減速、停止、後退、旋回、目的地復帰は行わない。
 
 ## サンプル2: 最低限Guided回避
 
@@ -211,11 +236,13 @@ CLEAR
 主な動作:
 
 - `vehicle:get_mode()`でGuided中か確認する
-- `vehicle:get_target_location()`でGuided目的地を保存する
-- `rangefinder:distance_cm_orient(0)`で前方距離を監視する
+- 可能なら`vehicle:get_target_location()`でGuided目的地を保存する
+- 標準Roverで`get_target_location()`が`nil`の場合は、現在位置、WP距離、WP方位からGuided目的地を復元する
+- `rangefinder:distance_orient(0)`で前方距離をm単位で監視する
 - `vehicle:set_desired_speed()`で警戒時の減速を試す
 - `vehicle:set_desired_turn_rate_and_speed()`で停止、約2.0 m後退、強めの固定方向旋回を試す
-- `vehicle:set_target_location()`で保存した目的地への復帰を試す
+- `vehicle:set_target_location()`で保存または復元した目的地への復帰を試す
+- 目的地復帰後の速度復帰は`set_desired_speed()`だけを使い、`set_desired_turn_rate_and_speed()`へフォールバックしない
 - API失敗、センサー喪失、最大試行回数到達時は`FAULT`として停止指令を出す
 
 このサンプルは、仕様04の完全実装ではない。状態機械の骨格をSITLで確認するための最小版である。
@@ -227,11 +254,11 @@ CLEAR
 | 仕様項目 | 監視サンプル | 最低限回避サンプル |
 | --- | --- | --- |
 | `SCP-01` Guided対象モード | 対応なし | 簡易対応 |
-| `SCP-02` 目的地保持 | 対応なし | 簡易対応 |
+| `SCP-02` 目的地保持 | 診断のみ | `get_target_location()`またはWP距離・方位から復元 |
 | `SCP-03` 距離監視 | 対応 | 対応 |
 | `SCP-04` 減速・停止 | 表示のみ | 簡易対応 |
 | `SCP-05` 限定回避 | 対応なし | 約2.0 m後退・強めの固定旋回のみ |
-| `SCP-06` 目的地復帰 | 対応なし | 簡易対応 |
+| `SCP-06` 目的地復帰 | 対応なし | `set_target_location()`で簡易対応 |
 | `SCP-07` 異常処理 | データなし表示のみ | 簡易`FAULT` |
 | `SCP-08` ログ | 距離帯表示のみ | 状態遷移と異常表示 |
 
@@ -260,12 +287,16 @@ CLEAR
 | API | 確認すること |
 | --- | --- |
 | `vehicle:get_mode()` | Guidedのモード番号が想定どおりか |
-| `vehicle:get_target_location()` | Guided目的地を取得できるか |
+| `vehicle:get_target_location()` | Roverで実装されていればGuided目的地を取得できるか |
+| `vehicle:get_wp_distance_m()` | RoverでGuided WPまでの距離を取得できるか |
+| `vehicle:get_wp_bearing_deg()` | RoverでGuided WPへの方位を取得できるか |
+| `ahrs:get_location()` | 現在位置を取得できるか |
+| `Location:offset_bearing(bearing, distance)` | 現在位置からTarget座標を復元できるか |
 | `vehicle:set_target_location(location)` | 保存した目的地へ戻せるか |
 | `vehicle:set_desired_speed(speed)` | Guided中に速度上限を変更できるか |
 | `vehicle:set_desired_turn_rate_and_speed(rate, speed)` | 停止、後退、旋回指令が成功するか |
 | `rangefinder:has_data_orient(0)` | 前方Rangefinderデータが有効か |
-| `rangefinder:distance_cm_orient(0)` | 前方距離の単位がcmで期待どおりか |
+| `rangefinder:distance_orient(0)` | 前方距離の単位がmで期待どおりか |
 
 REPLは実機走行判断の代わりではない。実機ではまずタイヤを浮かせ、距離読み取りだけを確認する。
 
@@ -274,15 +305,16 @@ REPLは実機走行判断の代わりではない。実機ではまずタイヤ�
 最低限、次をSITLで確認してから実機へ進む。
 
 1. `DISTANCE_SENSOR.current_distance`とLuaの距離表示が一致する
-2. Guided目的地をLuaが取得できる
-3. 警戒距離で`SLOW`へ入る
-4. 停止距離で`STOP`へ入り、速度0指令を継続する
-5. `BACKUP`、`TURN`、`RECHECK`が意図した時間だけ実行される
-6. 前方安全時に`RESUME`へ入り、保存した目的地がある場合だけ再設定できる
-7. Rangefinder喪失、API失敗、最大試行回数到達で`FAULT`へ入る
-8. モード変更またはDisarmでLuaが回避シーケンスを中止する
-9. QuikTuneなど他のLuaスクリプトと同時実行しない
-10. 試験後に通常運用正本パラメータへ戻せる
+2. 監視サンプルでFly To送信後に`LUAOA: target direct=nil wp=ok ...`または`LUAOA: target direct=ok`が出る
+3. Guided回避サンプルでFly To送信後に`LUAOA: guided target ready via wp-vector`が出る
+4. 警戒距離で`SLOW`へ入る
+5. 停止距離で`STOP`へ入り、速度0指令を継続する
+6. `BACKUP`、`TURN`、`RECHECK`が意図した時間だけ実行される
+7. 前方安全時に`RESUME`へ入り、復元した目的地を再設定できる
+8. Rangefinder喪失、API失敗、最大試行回数到達で`FAULT`へ入る
+9. モード変更またはDisarmでLuaが回避シーケンスを中止する
+10. QuikTuneなど他のLuaスクリプトと同時実行しない
+11. 試験後に通常運用正本パラメータへ戻せる
 
 実機では、最初から最低限回避サンプルを地上走行させない。まず監視サンプルで距離表示だけ確認し、次にタイヤを浮かせてGuided目的地保存と停止指令を確認する。
 

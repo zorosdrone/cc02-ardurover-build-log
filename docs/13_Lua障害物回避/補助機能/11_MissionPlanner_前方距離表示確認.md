@@ -123,5 +123,4 @@ Flight Data Tuning: groundspeed
 
 ## 関連資料
 
-- [標準ArduRover SITLで前方LiDARによる障害物前停止を試す](02_標準SITLでのLiDAR再現方針.md)
-- [Rover SITL前方Rangefinder / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)
+- [Rover SITL前方Rangefinder / 標準OA / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)

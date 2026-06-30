@@ -2,12 +2,13 @@
 --
 -- 目的:
 --   DeepWikiサンプルの「近い障害物を検出したらLuaで回避指令を出す」
---   考え方を、CC-02 / ArduRover 4.6.3向けAPIに寄せて試す。
+--   考え方を、ArduPilot最新版SITL向けAPIに寄せて試す。
 --
 -- 範囲:
 --   SITLでの学習・動作確認用。
 --   OA_TYPE=1 / BendyRuler は使用しない。
 --   前方Rangefinder 1個だけを使うため、左右の空きを比較しない。
+--   最新版向けに rangefinder:distance_orient(0) を使い、距離はm単位で扱う。
 --   実機で地面に置いたまま実行しない。実機ではまずタイヤを浮かせて確認する。
 --
 -- 動作:
@@ -21,14 +22,14 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260629-target-resume-required-v4"
+local SCRIPT_VERSION = "20260630-wp-vector-target-v6"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
 
-local WARN_CM = 800
-local STOP_CM = 400
-local RESUME_CM = 1000
+local WARN_M = 8.0
+local STOP_M = 4.0
+local RESUME_M = 10.0
 local REQUIRED_COUNT = 3
 
 local RUN_SPEED_MS = 1.0
@@ -87,26 +88,67 @@ local function is_guided_and_armed()
   return vehicle:get_mode() == MODE_GUIDED and arming:is_armed()
 end
 
-local function read_front_cm()
+local function read_front_m()
   if not rangefinder:has_data_orient(FRONT_ORIENT) then
     return nil
   end
 
-  local ok_m, distance_m = pcall(function()
-    return rangefinder:distance_orient(FRONT_ORIENT)
+  return rangefinder:distance_orient(FRONT_ORIENT)
+end
+
+local function read_guided_target()
+  -- Rover master currently exposes this Lua API, but standard Rover may return nil
+  -- because get_target_location() is not implemented in Rover itself.
+  local ok_target, target = pcall(function()
+    return vehicle:get_target_location()
   end)
-  if ok_m and distance_m ~= nil then
-    return math.floor(distance_m * 100 + 0.5)
+  if ok_target and target ~= nil then
+    return target:copy(), "target-api"
   end
 
-  local ok_cm, distance_cm = pcall(function()
-    return rangefinder:distance_cm_orient(FRONT_ORIENT)
+  -- Rover fallback: rebuild the current Guided WP target from current position,
+  -- WP distance, and WP bearing while Guided is still in WP-style travel.
+  local ok_current, current = pcall(function()
+    return ahrs:get_location()
   end)
-  if ok_cm then
-    return distance_cm
+  local ok_distance, distance_m = pcall(function()
+    return vehicle:get_wp_distance_m()
+  end)
+  local ok_bearing, bearing_deg = pcall(function()
+    return vehicle:get_wp_bearing_deg()
+  end)
+
+  if not ok_current or not ok_distance or not ok_bearing or
+     current == nil or distance_m == nil or bearing_deg == nil or distance_m < 0.5 then
+    return nil, "unavailable"
   end
 
-  return nil
+  target = current:copy()
+  local ok_offset = pcall(function()
+    target:offset_bearing(bearing_deg, distance_m)
+  end)
+
+  if not ok_offset then
+    return nil, "unavailable"
+  end
+
+  return target, "wp-vector"
+end
+
+local function capture_guided_target()
+  local current_target, target_source = read_guided_target()
+  if current_target == nil then
+    return false, target_source
+  end
+
+  local first_capture = saved_target == nil
+  saved_target = current_target
+
+  if first_capture then
+    report(MAV_SEVERITY.NOTICE, "LUAOA: guided target ready via " .. target_source)
+  end
+
+  return true, target_source
 end
 
 local function stop_vehicle()
@@ -114,10 +156,7 @@ local function stop_vehicle()
 end
 
 local function restore_run_speed()
-  if vehicle:set_desired_speed(RUN_SPEED_MS) then
-    return true
-  end
-  return vehicle:set_desired_turn_rate_and_speed(0, RUN_SPEED_MS)
+  return vehicle:set_desired_speed(RUN_SPEED_MS)
 end
 
 local function fault(reason)
@@ -145,78 +184,66 @@ local function update()
     return
   end
 
-  local distance_cm = read_front_cm()
+  local distance_m = read_front_m()
 
   if state == "IDLE" then
-    saved_target = vehicle:get_target_location()
-    if saved_target == nil then
-      report(MAV_SEVERITY.NOTICE, "LUAOA: guided target not visible to Lua; safety-only avoid, no resume target")
-      enter("CLEAR", "guided ready safety-only")
-    else
+    if capture_guided_target() then
       enter("CLEAR", "guided target ready")
+    else
+      report_limited(MAV_SEVERITY.INFO, "LUAOA: waiting for guided target")
     end
     return
   end
 
-  if distance_cm == nil then
+  if distance_m == nil then
     fault("no front rangefinder data")
     return
   end
 
   if state == "CLEAR" then
-    local current_target = vehicle:get_target_location()
-    if current_target ~= nil then
-      saved_target = current_target
-    end
+    capture_guided_target()
 
-    if distance_cm <= STOP_CM then
+    if distance_m <= STOP_M then
       detect_count = detect_count + 1
       if detect_count >= REQUIRED_COUNT then
-        local current_target = vehicle:get_target_location()
-        if current_target ~= nil then
-          saved_target = current_target
-        end
+        capture_guided_target()
         if saved_target == nil then
-          report(MAV_SEVERITY.WARNING, "LUAOA: stop without visible guided target")
+          fault("no saved target before stop")
+          return
         end
-        enter("STOP", string.format("distance %d cm", distance_cm))
+        enter("STOP", string.format("distance %.1f m", distance_m))
       end
-    elseif distance_cm <= WARN_CM then
+    elseif distance_m <= WARN_M then
       detect_count = detect_count + 1
       if detect_count >= REQUIRED_COUNT then
-        enter("SLOW", string.format("distance %d cm", distance_cm))
+        enter("SLOW", string.format("distance %.1f m", distance_m))
       end
     else
       detect_count = 0
-      report_limited(MAV_SEVERITY.INFO, string.format("LUAOA: clear %d cm", distance_cm))
+      report_limited(MAV_SEVERITY.INFO, string.format("LUAOA: clear %.1f m", distance_m))
     end
     return
   end
 
   if state == "SLOW" then
-    local current_target = vehicle:get_target_location()
-    if current_target ~= nil then
-      saved_target = current_target
-    end
+    capture_guided_target()
 
     if not vehicle:set_desired_speed(SLOW_SPEED_MS) then
       fault("set_desired_speed failed")
       return
     end
 
-    if distance_cm <= STOP_CM then
+    if distance_m <= STOP_M then
       detect_count = detect_count + 1
       if detect_count >= REQUIRED_COUNT then
-        local current_target = vehicle:get_target_location()
-        if current_target ~= nil then
-          saved_target = current_target
-        end
+        capture_guided_target()
         if saved_target == nil then
-          report(MAV_SEVERITY.WARNING, "LUAOA: stop without visible guided target")
+          fault("no saved target before stop")
+          return
         end
-        enter("STOP", string.format("distance %d cm", distance_cm))
+        enter("STOP", string.format("distance %.1f m", distance_m))
       end
-    elseif distance_cm >= RESUME_CM then
+    elseif distance_m >= RESUME_M then
       clear_count = clear_count + 1
       if clear_count >= REQUIRED_COUNT then
         detect_count = 0
@@ -225,7 +252,7 @@ local function update()
           fault("restore speed failed")
           return
         end
-        enter("CLEAR", string.format("distance %d cm", distance_cm))
+        enter("CLEAR", string.format("distance %.1f m", distance_m))
       end
     else
       clear_count = 0
@@ -275,14 +302,14 @@ local function update()
       return
     end
 
-    if distance_cm >= RESUME_CM then
-      enter("RESUME", string.format("distance %d cm", distance_cm))
+    if distance_m >= RESUME_M then
+      enter("RESUME", string.format("distance %.1f m", distance_m))
     else
       try_count = try_count + 1
       if try_count >= MAX_TRY then
         fault("max avoid tries reached")
       else
-        enter("BACKUP", string.format("blocked %d cm", distance_cm))
+        enter("BACKUP", string.format("blocked %.1f m", distance_m))
       end
     end
     return
@@ -300,7 +327,7 @@ local function update()
     end
 
     if not restore_run_speed() then
-      report(MAV_SEVERITY.WARNING, "LUAOA: resume speed restore failed after target restore")
+      report(MAV_SEVERITY.WARNING, "LUAOA: target restored but speed restore failed")
     end
 
     detect_count = 0

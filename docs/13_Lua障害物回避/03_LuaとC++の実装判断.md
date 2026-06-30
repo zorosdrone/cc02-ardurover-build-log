@@ -351,8 +351,7 @@ GUIDED速度・旋回指令
 ## プロジェクト内の関連資料
 
 - [Lua障害物回避プロジェクト概要](README.md)
-- [Rover SITL前方Rangefinder / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)
-- [標準SITLでのLiDAR再現方針](02_標準SITLでのLiDAR再現方針.md)
+- [Rover SITL前方Rangefinder / 標準OA / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)
 
 [1]: https://github.com/ArduPilot/ardupilot/blob/Rover-4.6.3/Rover/Rover.cpp "ardupilot/Rover/Rover.cpp at Rover-4.6.3 · ArduPilot/ardupilot · GitHub"
 [2]: https://github.com/ArduPilot/ardupilot/blob/Rover-4.6.3/libraries/AP_Scripting/examples/rover-set-turn-rate.lua "ardupilot/libraries/AP_Scripting/examples/rover-set-turn-rate.lua at Rover-4.6.3 · ArduPilot/ardupilot · GitHub"

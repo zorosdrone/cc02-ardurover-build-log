@@ -1,4 +1,4 @@
-# Rover SITL前方Rangefinder / Lua設定手順
+# Rover SITL前方Rangefinder / 標準OA / Lua設定手順
 
 更新日: 2026-06-22
 
@@ -8,9 +8,9 @@
 
 ## 目的
 
-ArduPilot Rover SITLの内蔵機能だけで、前方へ1本の測距レイを出す仮想Rangefinderを構成する。MAVProxyとLuaの両方で距離を確認し、CC-02用Lua障害物回避ロジックを実機投入前に検証できる状態にする。
+ArduPilot Rover SITLの内蔵機能だけで、前方へ1本の測距レイを出す仮想Rangefinderを構成する。MAVProxy、標準Simple Object Avoidance、Luaの順に距離と停止動作を確認し、CC-02用Lua障害物回避ロジックを実機投入前に検証できる状態にする。
 
-この手順では360度LiDARの`sim:ld06`を使用しない。
+この手順では360度LiDARの`sim:ld06`を使用しない。標準Simple Object Avoidanceの前停止は本書に統合し、`OA_TYPE=1` / BendyRulerは反応確認だけを行う補助試験として扱う。
 
 シミュレーション開発では、最新ArduPilotソースのSITL専用Rangefinderドライバ、m単位のパラメータ、およびm単位のLua APIを使用する。実機はArduRover 4.6.3のままなので、TF-Lunaの実機設定とcm単位のLua APIを別枠で残す。
 
@@ -198,7 +198,7 @@ script /tmp/post-locations.scr
 
 仮想ポストの確認はMAVProxyの`script /tmp/post-locations.scr`を主手順とする。
 
-Mission Plannerで位置関係を見たい場合は、`/tmp/post-locations.scr`をKMLへ変換し、KMLオーバーレイとして補助表示できる。手順と表示例は[仮想ポストKML表示補助](05_仮想ポストKML表示補助.md)を参照する。
+Mission Plannerで位置関係を見たい場合は、`/tmp/post-locations.scr`をKMLへ変換し、KMLオーバーレイとして補助表示できる。手順と表示例は[仮想ポストKML表示補助](補助機能/10_MP_仮想ポストKML表示補助.md)を参照する。
 
 ## 6. MAVProxyで距離を確認
 
@@ -249,7 +249,100 @@ graph DISTANCE_SENSOR.current_distance
 
 SITLのポストは半径1 m、格子間隔10 mで、交差判定レイは200 mである。連続した壁ではない。
 
-## 7. Luaを有効化
+## 7. 標準Simple Object Avoidanceで前停止を確認
+
+Lua制御へ進む前に、ArduPilot標準機能だけで前方障害物の検出と停止を確認する。これは実機の通常運用正本に近い安全側の基準試験であり、Lua試験の比較対象として残す。
+
+最初は停止制御を無効にし、RangefinderからProximityへの変換だけを確認する。
+
+```text
+param set PRX1_TYPE 4
+param set AVOID_ENABLE 0
+param set OA_TYPE 0
+reboot
+```
+
+再起動後に確認する。
+
+```text
+script /tmp/post-locations.scr
+module load graph
+graph DISTANCE_SENSOR.current_distance
+module load proximity
+param show PRX1_TYPE
+param show AVOID_ENABLE
+param show OA_TYPE
+```
+
+合格条件:
+
+- MAVProxyマップへ仮想ポストが表示される
+- 車体前方にポストを向けると`DISTANCE_SENSOR.current_distance`が減る
+- Proximity表示は前方だけで、左右や後方には検出情報がない
+- `AVOID_ENABLE=0`なので、この段階では自動停止しない
+
+ここを通過したら、標準Simple Object Avoidanceを有効化する。
+
+```text
+param set AVOID_ENABLE 7
+param set AVOID_MARGIN 2
+param set AVOID_BEHAVE 1
+param set AVOID_BACKUP_SPD 0
+param set OA_TYPE 0
+reboot
+
+script /tmp/post-locations.scr
+module load graph
+graph DISTANCE_SENSOR.current_distance
+graph VFR_HUD.groundspeed
+module load proximity
+```
+
+| パラメータ | 値 | 意味 |
+| --- | ---: | --- |
+| `PRX1_TYPE` | 4 | RangefinderをProximity Sensorとして使用 |
+| `AVOID_ENABLE` | 7 | Fence、Proximity、Beacon Fenceを有効化。今回の障害物入力はProximity |
+| `AVOID_MARGIN` | 2 | 障害物から維持しようとする距離2 m |
+| `AVOID_BEHAVE` | 1 | Stop。Roverの既定もStopだが試験条件を明示する |
+| `AVOID_BACKUP_SPD` | 0 | 障害物へ近すぎても自動後退させない |
+| `OA_TYPE` | 0 | BendyRuler等の経路計画を無効化 |
+
+低速で接近し、障害物前停止を確認する。例として`ACRO`を使用する。
+
+```text
+mode acro
+arm throttle
+rc 3 1550
+```
+
+停止後はスロットルを中立へ戻し、Disarmする。
+
+```text
+rc 3 1500
+disarm
+```
+
+合格条件:
+
+- Luaスクリプトを使っていない
+- `MANUAL`以外のモードで試験している
+- 前方距離が減るとRoverが減速を開始する
+- ポストへ接触する前に対地速度が0付近になる
+- 停止後も前進指令を残した状態で、障害物を通り抜けない
+- `AVOID_BACKUP_SPD=0`なので自動後退しない
+- `OA_TYPE=0`なので左右への自律迂回は行わない
+
+`MANUAL`ではSimple Object Avoidanceが停止させない。必要なら最後に低速で負の対照試験として確認する。
+
+2026-06-22のSITL試験では、`ACRO`でArduPilot標準Simple Object Avoidanceによる障害物前停止を確認済みである。
+
+### 7.1 BendyRulerを試す場合
+
+`OA_TYPE=1` / BendyRulerは、前方1点Rangefinderだけでは安全な左右迂回の合格判定に使わない。前方1点では左右の空き方向を観測できないため、試験は「有効化できる」「GUIDEDで反応する」「経路なしや停止を含む反応を記録できる」までに留める。
+
+BendyRulerの最短実行手順は[WSLからSITLとBendyRulerを実行する最短手順](00_SITL_BendyRuler実行手順.md)を参照する。Luaサンプル試験とは別系統として扱い、試験後は`OA_TYPE=0`へ戻してSimple Object Avoidanceの前停止を再確認する。
+
+## 8. Luaを有効化
 
 MAVProxyコンソールで実行する。
 
@@ -308,7 +401,7 @@ Front range monitor started
 Front range: xx.xx m
 ```
 
-## 8. Lua停止制御へ進む条件
+## 9. Lua停止制御へ進む条件
 
 監視が安定してから停止制御を追加する。
 
@@ -345,7 +438,7 @@ Front range: xx.xx m
 
 `vehicle:set_desired_speed()`、`vehicle:set_desired_turn_rate_and_speed()`、`vehicle:set_mode()`はRover-4.6.3のLua APIに存在する。採用APIと対象モードを固定し、停止だけを単独試験してから回避へ進む。
 
-## 9. 実機へ移す前の分離手順
+## 10. 実機へ移す前の分離手順
 
 現在の通常運用正本はNative Simple Object Avoidanceを有効化している。
 
@@ -373,7 +466,7 @@ params/tuned/YYYYMMDD_01_before_lua_avoid_test.param
 - タイヤ浮かせ、低速、平坦地の順で進む
 - 終了後は`20260613_pixhawk6c_rover_tuned_01.param`へ戻す
 
-## 10. 試験表
+## 11. 試験表
 
 | ID | 試験 | 合格条件 |
 | --- | --- | --- |
@@ -381,6 +474,9 @@ params/tuned/YYYYMMDD_01_before_lua_avoid_test.param
 | RF-02 | ポストへ接近 | 距離が連続的に減る |
 | RF-03 | その場旋回 | ポストを外すと範囲外相当の大きな値へ戻る |
 | RF-04 | ポスト間 | 未検出になり得ることを確認 |
+| STD-01 | Proximity変換 | 前方RangefinderがProximityへ反映される |
+| STD-02 | 標準Simple OA前停止 | Luaなしでポスト手前に停止する |
+| STD-03 | `MANUAL`負の対照 | 低速で自動停止しないことを確認 |
 | LUA-01 | Lua起動 | 起動メッセージが1回出る |
 | LUA-02 | API単位 | Luaのm値が`DISTANCE_SENSOR.current_distance * 0.01`と一致する |
 | LUA-03 | センサー無効 | `no data`を検出する |
@@ -389,7 +485,7 @@ params/tuned/YYYYMMDD_01_before_lua_avoid_test.param
 | REAL-01 | 実機読取り | TF-Luna値とMission Planner表示が一致する |
 | REAL-02 | 設定復帰 | 通常運用正本でNative OA停止を再現する |
 
-## 11. トラブルシュート
+## 12. トラブルシュート
 
 ### `RNGFND1_MIN`が見つからない
 
@@ -437,7 +533,7 @@ SERIAL2_BAUD = 115
 ## 関連資料
 
 - [Lua障害物回避プロジェクト概要](README.md)
-- [標準ArduRover SITLで前方LiDARによる障害物前停止を試す](02_標準SITLでのLiDAR再現方針.md)
+- [WSLからSITLとBendyRulerを実行する最短手順](00_SITL_BendyRuler実行手順.md)
 - [現在状況](../01_現在状況.md)
 - [ArduRoverパラメータ](../01_FC換装/06_ArduRoverパラメータ.md)
 - [チューニングログ](../02_チューニング/09_チューニングログ.md)
