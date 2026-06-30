@@ -181,6 +181,7 @@ QuikTune用スクリプトとの同時実行も避ける。新しいLua試験用
 - [開発検討: Guided位置指定対応Lua障害物回避仕様書](今後の開発検討/Guided位置指定対応Lua障害物回避仕様書.md)
 - [SITL Luaサンプルスクリプト](05_SITL_Luaサンプルスクリプト.md)
 - [最低限Guided回避Lua解説](06_MinGuided回避Lua解説.md)
+- [REPLでLua APIを確認する](補助機能/12_REPLでLuaAPIを確認する.md)
 - [仮想ポストKML表示補助](補助機能/10_MP_仮想ポストKML表示補助.md)
 - [現在状況](../01_現在状況.md)
 - [ArduRoverパラメータ](../01_FC換装/06_ArduRoverパラメータ.md)
