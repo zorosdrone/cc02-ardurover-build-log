@@ -177,8 +177,8 @@ QuikTune用スクリプトとの同時実行も避ける。新しいLua試験用
 
 - [WSLからSITLとBendyRulerを実行する最短手順](00_SITL_BendyRuler実行手順.md)
 - [Rover SITL前方Rangefinder / 標準OA / Lua設定手順](01_RoverSITL前方Rangefinder設定手順.md)
-- [LuaとC++独自モードの実装判断](03_LuaとC++の実装判断.md)
-- [Guided位置指定対応Lua障害物回避仕様書](04_Guided位置指定対応Lua障害物回避仕様書.md)
+- [開発検討: LuaとC++独自モードの実装判断](今後の開発検討/LuaとC++の実装判断.md)
+- [開発検討: Guided位置指定対応Lua障害物回避仕様書](今後の開発検討/Guided位置指定対応Lua障害物回避仕様書.md)
 - [SITL Luaサンプルスクリプト](05_SITL_Luaサンプルスクリプト.md)
 - [最低限Guided回避Lua解説](06_最低限Guided回避Lua解説.md)
 - [仮想ポストKML表示補助](補助機能/10_MP_仮想ポストKML表示補助.md)

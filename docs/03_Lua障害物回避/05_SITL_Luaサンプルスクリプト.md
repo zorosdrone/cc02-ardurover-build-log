@@ -18,14 +18,14 @@
 
 | ファイル | 用途 | 走行指令 | 位置づけ |
 | --- | --- | --- | --- |
-| [20260628_luaoa_rangefinder_watch.lua](../../参考資料/ArduPilot/scripts/20260628_luaoa_rangefinder_watch.lua) | 前方Rangefinderの読み取り確認、Target取得可否の診断 | なし | 最初に使う監視専用サンプル |
-| [20260628_luaoa_min_guided_avoid.lua](../../参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua) | 最低限のGuided回避確認 | あり | SITLで状態機械の骨格を見るサンプル |
+| [luaoa_rangefinder_watch.lua](Scripts/luaoa_rangefinder_watch.lua) | 前方Rangefinderの読み取り確認、Target取得可否の診断 | なし | 最初に使う監視専用サンプル |
+| [luaoa_min_guided_avoid.lua](Scripts/luaoa_min_guided_avoid.lua) | 最低限のGuided回避確認 | あり | SITLで状態機械の骨格を見るサンプル |
 
 どちらも、SITLではArduPilot作業ディレクトリ直下の`scripts`へ置いて使う。
 
 ```text
-ardupilot/scripts/20260628_luaoa_rangefinder_watch.lua
-ardupilot/scripts/20260628_luaoa_min_guided_avoid.lua
+ardupilot/scripts/luaoa_rangefinder_watch.lua
+ardupilot/scripts/luaoa_min_guided_avoid.lua
 ```
 
 起動前にScriptingを有効化し、再起動する。Luaは`scripts`直下の`.lua`を読み込むため、確認するサンプルは1本ずつ置く。
@@ -43,10 +43,10 @@ WSLでArduPilot作業ディレクトリへ移動し、確認したいLuaを`scri
 ```bash
 cd ~/ardupilot
 mkdir -p scripts
-cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/参考資料/ArduPilot/scripts/20260628_luaoa_rangefinder_watch.lua scripts/
+cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/docs/03_Lua障害物回避/Scripts/luaoa_rangefinder_watch.lua scripts/
 ```
 
-`20260628_luaoa_min_guided_avoid.lua`や`rover-quicktune.lua`など、別のLuaを同時に`scripts`直下へ置かない。複数のLuaが同時に動くと、速度指令やメッセージの原因を切り分けにくい。
+`luaoa_min_guided_avoid.lua`や`rover-quicktune.lua`など、別のLuaを同時に`scripts`直下へ置かない。複数のLuaが同時に動くと、速度指令やメッセージの原因を切り分けにくい。
 
 ### 2. Rover SITLを起動する
 
@@ -83,6 +83,8 @@ param show SCR_ENABLE
 param show RNGFND1_ORIENT
 param show AVOID_ENABLE
 param show OA_TYPE
+
+arm throttle
 ```
 
 ### 3. 監視サンプルを確認する
@@ -99,6 +101,12 @@ LUAOA: target direct=nil wp=ok ...m ...d
 実行結果例:
 
 ![監視サンプルでstop zoneに入ったMAVProxy表示](images/sitl-lua-rangefinder-watch-stop-zone.png)
+
+GuidedでFly Toを送信した後のTarget診断込みの実行例:
+
+![監視サンプルでTarget診断とDISTANCE_SENSORを確認したMAVProxy表示](images/sitl-lua-target-diagnostic-guided-example.png)
+
+この例では、GCSメッセージに`target direct=nil wp=ok ...`が出ており、`vehicle:get_target_location()`は直接Targetを返していないが、WP距離・方位からGuided Targetを復元できている。`DISTANCE_SENSOR.current_distance`のグラフもポスト接近時の距離変化を示している。
 
 確認すること:
 
@@ -117,8 +125,8 @@ LUAOA: target direct=nil wp=ok ...m ...d
 
 ```bash
 cd ~/ardupilot
-rm -f scripts/20260628_luaoa_rangefinder_watch.lua
-cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua scripts/
+rm -f scripts/luaoa_rangefinder_watch.lua
+cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua scripts/
 ```
 
 MAVProxyで再起動する。
@@ -170,7 +178,7 @@ Luaサンプルを外し、保存したパラメータへ戻す。
 
 ```bash
 cd ~/ardupilot
-rm -f scripts/20260628_luaoa_min_guided_avoid.lua
+rm -f scripts/luaoa_min_guided_avoid.lua
 ```
 
 ```text
@@ -184,7 +192,7 @@ reboot
 対象ファイル:
 
 ```text
-参考資料/ArduPilot/scripts/20260628_luaoa_rangefinder_watch.lua
+docs/03_Lua障害物回避/Scripts/luaoa_rangefinder_watch.lua
 ```
 
 目的は、Luaから前方Rangefinderを読めるか確認し、あわせてGuided TargetがLuaから見えるかを確認することである。
@@ -216,7 +224,7 @@ Target診断ログの読み方:
 対象ファイル:
 
 ```text
-参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua
+docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua
 ```
 
 目的は、障害物を検出したときにLuaからGuided向けAPIを呼び出す流れを、CC-02向けの前方Rangefinder構成でSITL確認することである。
@@ -249,7 +257,7 @@ CLEAR
 
 ## 仕様04との関係
 
-[Guided位置指定対応Lua障害物回避仕様書](04_Guided位置指定対応Lua障害物回避仕様書.md) に対する位置づけは次の通り。
+[Guided位置指定対応Lua障害物回避仕様書](今後の開発検討/Guided位置指定対応Lua障害物回避仕様書.md) に対する位置づけは次の通り。
 
 | 仕様項目 | 監視サンプル | 最低限回避サンプル |
 | --- | --- | --- |
@@ -323,4 +331,4 @@ REPLは実機走行判断の代わりではない。実機ではまずタイヤ�
 - [2026-06-29 SITL Lua Guided回避 再開メモ](../../logs/test_runs/20260629_01_sitl_lua_guided_avoid_resume_handoff.md)
 - ArduPilot master `Rover.cpp`: <https://github.com/ArduPilot/ardupilot/blob/master/Rover/Rover.cpp>
 - ArduPilot Scripting README: <https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_Scripting/README.md>
-- [Guided位置指定対応Lua障害物回避仕様書](04_Guided位置指定対応Lua障害物回避仕様書.md)
+- [Guided位置指定対応Lua障害物回避仕様書](今後の開発検討/Guided位置指定対応Lua障害物回避仕様書.md)

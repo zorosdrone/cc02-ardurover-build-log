@@ -8,7 +8,7 @@
 
 Target復帰できなかった主原因は、Lua状態遷移ではなく、標準Rover側で`vehicle:get_target_location()`がTargetを返せないことと判断した。
 
-対策として、`20260628_luaoa_min_guided_avoid.lua`を更新し、Guided WP走行中に次の情報からTarget座標を復元するようにした。
+対策として、`luaoa_min_guided_avoid.lua`を更新し、Guided WP走行中に次の情報からTarget座標を復元するようにした。
 
 ```lua
 vehicle:get_wp_distance_m()
@@ -36,20 +36,20 @@ LUAOA: RESUME -> CLEAR: target restored
 
 ## 今日の到達点
 
-1番目の監視サンプル `20260628_luaoa_rangefinder_watch.lua` は、前方Rangefinderを読み取り、`warn zone` / `stop zone` をGCSへ表示できた。
+1番目の監視サンプル `luaoa_rangefinder_watch.lua` は、前方Rangefinderを読み取り、`warn zone` / `stop zone` をGCSへ表示できた。
 実行結果画像は次に保存済み。
 
 ```text
-docs/13_Lua障害物回避/images/sitl-lua-rangefinder-watch-stop-zone.png
+docs/03_Lua障害物回避/images/sitl-lua-rangefinder-watch-stop-zone.png
 ```
 
-2番目の回避サンプル `20260628_luaoa_min_guided_avoid.lua` は、`SLOW`、`STOP`、`BACKUP`、`TURN`、`RECHECK`、`RESUME` まで状態遷移するところまで確認した。
+2番目の回避サンプル `luaoa_min_guided_avoid.lua` は、`SLOW`、`STOP`、`BACKUP`、`TURN`、`RECHECK`、`RESUME` まで状態遷移するところまで確認した。
 2026-06-29時点ではTargetへ戻らない問題が残っていたが、2026-06-30にWP距離・方位からTargetを復元する修正を入れた。
 
 ## 現在のLua保存元
 
 ```text
-参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua
+docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua
 ```
 
 現在の識別文字列:
@@ -141,13 +141,13 @@ WSLで、SITL側へ最新Luaをコピーする。
 
 ```bash
 cd ~/ardupilot
-cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua scripts/
+cp /mnt/c/Users/ta1na/source/cc02-ardurover-build-log/docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua scripts/
 ```
 
 読み込まれる予定のファイルを確認する。
 
 ```bash
-grep -n "SCRIPT_VERSION\|WARN_M\|STOP_M\|RESUME_M\|BACK_MS\|TURN_MS\|set_desired_turn_rate_and_speed(0, RUN_SPEED_MS)" scripts/20260628_luaoa_min_guided_avoid.lua
+grep -n "SCRIPT_VERSION\|WARN_M\|STOP_M\|RESUME_M\|BACK_MS\|TURN_MS\|set_desired_turn_rate_and_speed(0, RUN_SPEED_MS)" scripts/luaoa_min_guided_avoid.lua
 ```
 
 期待値:
@@ -219,8 +219,8 @@ LUAOA: guided target ready via wp-vector
 ## 関連ファイル
 
 ```text
-docs/13_Lua障害物回避/05_SITL_Luaサンプルスクリプト.md
-参考資料/ArduPilot/scripts/20260628_luaoa_rangefinder_watch.lua
-参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua
-docs/13_Lua障害物回避/images/sitl-lua-rangefinder-watch-stop-zone.png
+docs/03_Lua障害物回避/05_SITL_Luaサンプルスクリプト.md
+docs/03_Lua障害物回避/Scripts/luaoa_rangefinder_watch.lua
+docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua
+docs/03_Lua障害物回避/images/sitl-lua-rangefinder-watch-stop-zone.png
 ```

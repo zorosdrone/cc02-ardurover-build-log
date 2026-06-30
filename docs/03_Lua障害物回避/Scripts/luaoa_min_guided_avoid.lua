@@ -15,55 +15,65 @@
 --   Guided中に前方障害物を検出したら、停止、約2.0 m後退、強めの固定方向旋回、
 --   前方再確認、保存したGuided目的地への復帰を試みる。
 
+-- GCSへ表示するメッセージの重要度。ArduPilotのMAV_SEVERITY値に合わせる。
 local MAV_SEVERITY = {
-  CRITICAL = 2,
-  WARNING = 4,
-  NOTICE = 5,
-  INFO = 6,
+  CRITICAL = 2, -- 走行を止めるべき重大異常
+  WARNING = 4,  -- 動作継続は可能だが注意が必要
+  NOTICE = 5,   -- 状態遷移や起動通知
+  INFO = 6,     -- 通常の周期ログ
 }
 
+-- 起動時にGCSへ出す識別子。SITLログで、どの版を動かしたか追跡する。
 local SCRIPT_VERSION = "20260630-wp-vector-target-v6"
 
+-- RoverのGuidedモード番号と、前方Rangefinderの向き番号。
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
 
-local WARN_M = 8.0
-local STOP_M = 4.0
-local RESUME_M = 10.0
-local REQUIRED_COUNT = 3
+-- 距離しきい値。m単位で統一し、最新版SITLのdistance_orient()に合わせる。
+local WARN_M = 8.0       -- 警戒開始距離。この内側で減速候補にする。
+local STOP_M = 4.0       -- 停止開始距離。この内側でSTOPへ入る。
+local RESUME_M = 10.0    -- 安全確認距離。この外側まで離れたら復帰候補にする。
+local REQUIRED_COUNT = 3 -- 誤検出を避けるため、同じ判定が連続した回数だけ採用する。
 
-local RUN_SPEED_MS = 1.0
-local SLOW_SPEED_MS = 0.3
-local BACK_SPEED_MS = 0.45
-local TURN_SPEED_MS = 0.45
-local TURN_RATE_DEG_S = 35
-local TURN_DIR = 1
+-- Roverへ出す速度・旋回指令。m/sとdeg/sで指定する。
+local RUN_SPEED_MS = 1.0    -- 通常走行へ戻すときの速度上限
+local SLOW_SPEED_MS = 0.3   -- 警戒中の低速走行
+local BACK_SPEED_MS = 0.45  -- 後退速度。set_desired_turn_rate_and_speedには負値で渡す。
+local TURN_SPEED_MS = 0.45  -- 旋回中も少し前進させる速度
+local TURN_RATE_DEG_S = 35  -- 固定方向旋回の角速度
+local TURN_DIR = 1          -- 旋回方向。1で正方向、-1で逆方向。
 
-local STOP_HOLD_MS = 1500
-local BACK_MS = 4500
-local TURN_MS = 4500
-local RECHECK_SETTLE_MS = 500
-local MAX_TRY = 5
-local REPORT_INTERVAL_MS = 1000
-local UPDATE_INTERVAL_MS = 100
+-- 状態ごとの保持時間と安全上限。すべてms単位。
+local STOP_HOLD_MS = 1500       -- STOPで停止指令を保持する時間
+local BACK_MS = 4500            -- BACKUPで後退する時間
+local TURN_MS = 4500            -- TURNで固定方向へ旋回する時間
+local RECHECK_SETTLE_MS = 500   -- RECHECK開始直後に車体が落ち着くのを待つ時間
+local MAX_TRY = 5               -- BACKUP/TURN/RECHECKを繰り返す最大回数
+local REPORT_INTERVAL_MS = 1000 -- 通常ログの最短間隔。GCSをログで埋めないため。
+local UPDATE_INTERVAL_MS = 100  -- Lua update周期。距離監視の基本周期。
 
-local state = "IDLE"
-local state_start_ms = 0
-local last_report_ms = 0
-local detect_count = 0
-local clear_count = 0
-local try_count = 0
-local saved_target = nil
-local version_reported = false
+-- 状態機械の作業変数。
+local state = "IDLE"           -- 現在状態。IDLE/CLEAR/SLOW/STOP/BACKUP/TURN/RECHECK/RESUME/FAULT
+local state_start_ms = 0       -- 現在状態に入った時刻
+local last_report_ms = 0       -- 最後に周期ログを出した時刻
+local detect_count = 0         -- 障害物側判定が連続した回数
+local clear_count = 0          -- 安全側判定が連続した回数
+local try_count = 0            -- 回避試行回数
+local saved_target = nil       -- 障害物検出前に保存したGuided目的地
+local version_reported = false -- 起動メッセージを1回だけ出すためのフラグ
 
+-- 現在時刻をms整数で返す。状態経過時間の計算に使う。
 local function now_ms()
   return millis():toint()
 end
 
+-- GCSへ1行メッセージを送る薄いラッパー。
 local function report(severity, text)
   gcs:send_text(severity, text)
 end
 
+-- 通常ログを間引いて送る。100ms周期のupdateで毎回表示しないため。
 local function report_limited(severity, text)
   local t = now_ms()
   if t - last_report_ms > REPORT_INTERVAL_MS then
@@ -72,6 +82,7 @@ local function report_limited(severity, text)
   end
 end
 
+-- 状態を切り替え、遷移理由をGCSへ残す。
 local function enter(new_state, reason)
   if state ~= new_state then
     report(MAV_SEVERITY.NOTICE, string.format("LUAOA: %s -> %s: %s", state, new_state, reason))
@@ -80,14 +91,17 @@ local function enter(new_state, reason)
   state_start_ms = now_ms()
 end
 
+-- 現在状態に入ってからの経過時間を返す。
 local function elapsed_ms()
   return now_ms() - state_start_ms
 end
 
+-- Luaが走行へ介入してよい前提条件を確認する。
 local function is_guided_and_armed()
   return vehicle:get_mode() == MODE_GUIDED and arming:is_armed()
 end
 
+-- 前方Rangefinderをm単位で読む。データなしならnilを返して安全側へ倒す。
 local function read_front_m()
   if not rangefinder:has_data_orient(FRONT_ORIENT) then
     return nil
@@ -96,9 +110,10 @@ local function read_front_m()
   return rangefinder:distance_orient(FRONT_ORIENT)
 end
 
+-- Guided目的地を取得する。直接APIがnilならWP距離・方位から復元する。
 local function read_guided_target()
-  -- Rover master currently exposes this Lua API, but standard Rover may return nil
-  -- because get_target_location() is not implemented in Rover itself.
+  -- Rover masterではLua APIが見えていても、標準Rover側の実装都合で
+  -- get_target_location()がnilを返すことがある。
   local ok_target, target = pcall(function()
     return vehicle:get_target_location()
   end)
@@ -106,8 +121,8 @@ local function read_guided_target()
     return target:copy(), "target-api"
   end
 
-  -- Rover fallback: rebuild the current Guided WP target from current position,
-  -- WP distance, and WP bearing while Guided is still in WP-style travel.
+  -- Rover向けフォールバック。GuidedがWP移動として動いている間に、
+  -- 現在位置、WP距離、WP方位から現在のGuided目標座標を復元する。
   local ok_current, current = pcall(function()
     return ahrs:get_location()
   end)
@@ -135,6 +150,7 @@ local function read_guided_target()
   return target, "wp-vector"
 end
 
+-- 現在のGuided目的地を保存する。復帰時はこの座標へset_target_locationする。
 local function capture_guided_target()
   local current_target, target_source = read_guided_target()
   if current_target == nil then
@@ -151,19 +167,23 @@ local function capture_guided_target()
   return true, target_source
 end
 
+-- Roverへ停止指令を出す。STOP/RECHECK/FAULTで繰り返し呼ぶ。
 local function stop_vehicle()
   return vehicle:set_desired_turn_rate_and_speed(0, 0)
 end
 
+-- RESUME後に通常速度上限へ戻す。
 local function restore_run_speed()
   return vehicle:set_desired_speed(RUN_SPEED_MS)
 end
 
+-- 異常時の入口。理由を出してFAULT状態へ入り、以後は停止側へ倒す。
 local function fault(reason)
   report(MAV_SEVERITY.CRITICAL, "LUAOA: FAULT " .. reason)
   enter("FAULT", reason)
 end
 
+-- Guided解除やDisarm時に、試行回数や保存Targetを捨てて待機状態へ戻す。
 local function reset_to_idle(reason)
   detect_count = 0
   clear_count = 0
@@ -172,6 +192,7 @@ local function reset_to_idle(reason)
   enter("IDLE", reason)
 end
 
+-- 100ms周期で呼ばれる本体。状態機械を1ステップ進める。
 local function update()
   if not version_reported then
     report(MAV_SEVERITY.NOTICE, "LUAOA: loaded " .. SCRIPT_VERSION)
@@ -343,6 +364,7 @@ local function update()
   end
 end
 
+-- Lua例外でスクリプト全体を落とさないための保護ラッパー。
 local function protected_update()
   local ok, err = pcall(update)
   if not ok then

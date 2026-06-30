@@ -2,7 +2,7 @@
 
 更新日: 2026-06-30
 
-対象スクリプト: [20260628_luaoa_min_guided_avoid.lua](../../参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua)
+対象スクリプト: [luaoa_min_guided_avoid.lua](Scripts/luaoa_min_guided_avoid.lua)
 
 ## 結論
 
@@ -23,13 +23,13 @@ return protected_update, 1000
 リポジトリ内の保存元:
 
 ```text
-参考資料/ArduPilot/scripts/20260628_luaoa_min_guided_avoid.lua
+docs/03_Lua障害物回避/Scripts/luaoa_min_guided_avoid.lua
 ```
 
 SITLで実行するときの配置先:
 
 ```text
-~/ardupilot/scripts/20260628_luaoa_min_guided_avoid.lua
+~/ardupilot/scripts/luaoa_min_guided_avoid.lua
 ```
 
 前提:
@@ -45,7 +45,7 @@ SCR_ENABLE=1
 ```mermaid
 sequenceDiagram
     participant AP as ArduPilot Lua Scripting
-    participant Lua as 20260628_luaoa_min_guided_avoid.lua
+    participant Lua as luaoa_min_guided_avoid.lua
     participant Main as protected_update()
     participant Upd as update()
 
@@ -255,5 +255,5 @@ LUAOA: FAULT max avoid tries reached
 ## 参照
 
 - [SITL Luaサンプルスクリプト](05_SITL_Luaサンプルスクリプト.md)
-- [Guided位置指定対応Lua障害物回避仕様書](04_Guided位置指定対応Lua障害物回避仕様書.md)
+- [Guided位置指定対応Lua障害物回避仕様書](今後の開発検討/Guided位置指定対応Lua障害物回避仕様書.md)
 - [2026-06-29 SITL Lua Guided回避 再開メモ](../../logs/test_runs/20260629_01_sitl_lua_guided_avoid_resume_handoff.md)
