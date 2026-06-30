@@ -100,8 +100,6 @@ LUAOA: target direct=nil wp=ok ...m ...d
 
 実行結果例:
 
-![監視サンプルでstop zoneに入ったMAVProxy表示](images/sitl-lua-rangefinder-watch-stop-zone.png)
-
 GuidedでFly Toを送信した後のTarget診断込みの実行例:
 
 ![監視サンプルでTarget診断とDISTANCE_SENSORを確認したMAVProxy表示](images/sitl-lua-target-diagnostic-guided-example.png)
@@ -240,6 +238,10 @@ CLEAR
 → RECHECK
 → RESUME
 ```
+
+実行例:
+
+![SITL Lua 最低限 Guided 回避の実行例](images/sitl-lua_min_guided_avoid.png)
 
 主な動作:
 
