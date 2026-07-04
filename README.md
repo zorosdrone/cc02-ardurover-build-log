@@ -139,5 +139,6 @@ Git LFS対象:
 
 - [トラブルシュート](docs/10_トラブルシュート.md)
 - [部品リスト](docs/11_部品リスト.md)
+- [DigitalOcean運用メモ](docs/13_DigitalOcean運用メモ.md)
 - [ハードウェア判断ルール](docs/hardware-assumptions.md)
 - [CADフォルダ説明](cad/README.md)
