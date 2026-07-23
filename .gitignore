@@ -1,3 +1,6 @@
+# 一時ファイル
+tmp/
+
 # 大容量の ArduPilot ログは Git に直接入れず、Markdown から保存先を参照する。
 *.BIN
 *.bin

@@ -31,6 +31,8 @@ NEO-M8N TX
   -> u-center
 ```
 
+![Pixhawk 2.4.8 TELEM2 NEO-M8N connection with 3D Fix](image/pixhawk248-telem2-neo-m8n-3d-fix.png)
+
 ## 2. TELEM2をGPSにする通常設定
 
 Mission Plannerで次の値を設定する。
@@ -145,6 +147,8 @@ u-centerの`R ->`は、GPS受信機からPC側へ届いたメッセージを示�
 | `hAcc` | 水平精度推定値 |
 | `vAcc` | 垂直精度推定値 |
 
+![u-center NAV-PVT 3D Fix through Pixhawk serial passthrough](image/u-center-nav-pvt-3d-fix.png)
+
 ### u-centerで受信ログを保存
 
 1. `File -> New`で保存先ログファイルを作る。
@@ -173,6 +177,8 @@ Tera Termは通信の有無の確認や生バイナリ保存に使用できる�
 ```
 
 NEO-M8NはUBXバイナリを出力しているため、Tera Term画面では文字化けのように見える。これは受信失敗とは限らない。
+
+![Tera Term receiving UBX binary data at 230400 bps](image/tera-term-ubx-binary-230400bps.png)
 
 ### Tera Termで生バイナリを保存
 
