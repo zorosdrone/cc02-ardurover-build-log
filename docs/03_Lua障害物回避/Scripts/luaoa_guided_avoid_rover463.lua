@@ -22,10 +22,13 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260726-rover463-staged-v3"
+local SCRIPT_VERSION = "20260726-rover463-staged-v4"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
+local RF_STATUS_OUT_OF_RANGE_LOW = 2
+local RF_STATUS_OUT_OF_RANGE_HIGH = 3
+local RF_STATUS_GOOD = 4
 
 -- 現行パラメータのTF-Luna設定（20 cm～4 m）の内側で判定する。
 local WARN_M = 3.0
@@ -112,11 +115,28 @@ local function requested_level()
 end
 
 local function read_front_m()
+  local status = rangefinder:status_orient(FRONT_ORIENT)
   if not rangefinder:has_data_orient(FRONT_ORIENT) then
-    return nil
+    return nil, status
   end
 
-  return rangefinder:distance_cm_orient(FRONT_ORIENT) * 0.01
+  local distance_cm = rangefinder:distance_cm_orient(FRONT_ORIENT)
+
+  -- Some real sensors report zero distance when the target is outside
+  -- their measurable range.  Use the ArduPilot status to distinguish
+  -- "farther than maximum" from "closer than minimum".
+  if status == RF_STATUS_OUT_OF_RANGE_HIGH then
+    local max_cm = rangefinder:max_distance_cm_orient(FRONT_ORIENT)
+    return math.max(distance_cm, max_cm) * 0.01, status
+  end
+  if status == RF_STATUS_OUT_OF_RANGE_LOW then
+    return math.max(distance_cm, 0) * 0.01, status
+  end
+  if status ~= RF_STATUS_GOOD or distance_cm <= 0 then
+    return nil, status
+  end
+
+  return distance_cm * 0.01, status
 end
 
 local function read_guided_target()
@@ -220,15 +240,26 @@ local function reset_to_idle(reason)
   enter("IDLE", reason)
 end
 
-local function monitor_only(distance_m, level)
+local function monitor_only(distance_m, level, range_status)
   if distance_m == nil then
-    report_limited(MAV_SEVERITY.WARNING, "LUAOA463: monitor no front data")
+    report_limited(
+      MAV_SEVERITY.WARNING,
+      string.format(
+        "LUAOA463: monitor no range st=%s",
+        tostring(range_status)
+      )
+    )
     return
   end
 
   report_limited(
     MAV_SEVERITY.INFO,
-    string.format("LUAOA463: monitor %.2f m level=%d", distance_m, level)
+    string.format(
+      "LUAOA463: monitor %.2f m st=%s lv=%d",
+      distance_m,
+      tostring(range_status),
+      level
+    )
   )
 end
 
@@ -240,19 +271,19 @@ local function update()
   end
 
   local level = requested_level()
-  local distance_m = read_front_m()
+  local distance_m, range_status = read_front_m()
 
   if not is_guided_and_armed() then
     if state ~= "IDLE" then
       reset_to_idle("not guided or disarmed")
     end
-    monitor_only(distance_m, level)
+    monitor_only(distance_m, level, range_status)
     return
   end
 
   if state == "IDLE" then
     if level == 0 then
-      monitor_only(distance_m, level)
+      monitor_only(distance_m, level, range_status)
       return
     end
 
@@ -262,7 +293,10 @@ local function update()
       return
     end
     if distance_m == nil then
-      fault("no front rangefinder data at activation")
+      fault(
+        "no range at start st=" ..
+        tostring(range_status)
+      )
       return
     end
 
@@ -300,7 +334,7 @@ local function update()
   end
 
   if distance_m == nil then
-    fault("no front rangefinder data")
+    fault("no range st=" .. tostring(range_status))
     return
   end
 
@@ -319,13 +353,19 @@ local function update()
           fault("no saved target before stop")
           return
         end
-        enter("STOP", string.format("distance %.2f m", distance_m))
+        enter(
+          "STOP",
+          string.format("d=%.2f st=%s", distance_m, tostring(range_status))
+        )
       end
     elseif distance_m <= WARN_M then
       detect_count = detect_count + 1
       if detect_count >= REQUIRED_COUNT then
         detect_count = 0
-        enter("SLOW", string.format("distance %.2f m", distance_m))
+        enter(
+          "SLOW",
+          string.format("d=%.2f st=%s", distance_m, tostring(range_status))
+        )
       end
     else
       detect_count = 0
@@ -352,7 +392,10 @@ local function update()
           fault("no saved target before stop")
           return
         end
-        enter("STOP", string.format("distance %.2f m", distance_m))
+        enter(
+          "STOP",
+          string.format("d=%.2f st=%s", distance_m, tostring(range_status))
+        )
       end
     elseif distance_m >= RESUME_M then
       detect_count = 0
@@ -430,9 +473,17 @@ local function update()
     else
       try_count = try_count + 1
       if try_count >= MAX_TRY then
-        fault("max avoid tries reached")
+        fault("max tries")
       else
-        enter("BACKUP", string.format("blocked %.2f m try=%d", distance_m, try_count))
+        enter(
+          "BACKUP",
+          string.format(
+            "d=%.2f st=%s try=%d",
+            distance_m,
+            tostring(range_status),
+            try_count
+          )
+        )
       end
     end
     return
