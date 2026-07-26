@@ -22,7 +22,7 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260726-rover463-staged-v6"
+local SCRIPT_VERSION = "20260726-rover463-staged-v7"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
@@ -36,13 +36,13 @@ local REQUIRED_COUNT = 3
 -- 初回実機試験用の低速値。
 local RUN_SPEED_MS = 0.30
 local SLOW_SPEED_MS = 0.15
-local BACK_SPEED_MS = 0.20
+local BACK_THROTTLE = -0.35
 local TURN_SPEED_MS = 0.20
 local TURN_RATE_DEG_S = 20
 local TURN_DIR = 1
 
 local STOP_HOLD_MS = 1500
-local BACK_MS = 1200
+local BACK_MS = 1800
 local TURN_MS = 1200
 local RECHECK_SETTLE_MS = 700
 local MAX_TRY = 5
@@ -427,10 +427,17 @@ local function update()
   end
 
   if state == "BACKUP" then
-    if not vehicle:set_desired_turn_rate_and_speed(0, -BACK_SPEED_MS) then
+    -- The current vehicle's reverse output range is narrower than forward.
+    -- Direct throttle reliably reaches the ESC reverse region; the previous
+    -- -0.20 m/s speed command was accepted but did not move the vehicle.
+    if not vehicle:set_steering_and_throttle(0, BACK_THROTTLE) then
       fault("backup command failed")
       return
     end
+    report_limited(
+      MAV_SEVERITY.INFO,
+      string.format("LUAOA463: backing thr=%.2f", BACK_THROTTLE)
+    )
 
     if elapsed_ms() >= BACK_MS then
       if active_level == 2 then
