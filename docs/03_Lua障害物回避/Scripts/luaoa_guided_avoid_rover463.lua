@@ -22,10 +22,11 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260726-rover463-staged-v7"
+local SCRIPT_VERSION = "20260726-rover463-staged-v8"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
+local SERVO_THROTTLE_FUNCTION = 70
 
 -- 現行パラメータのTF-Luna設定（20 cm～4 m）の内側で判定する。
 local WARN_M = 3.0
@@ -36,7 +37,7 @@ local REQUIRED_COUNT = 3
 -- 初回実機試験用の低速値。
 local RUN_SPEED_MS = 0.30
 local SLOW_SPEED_MS = 0.15
-local BACK_THROTTLE = -0.35
+local BACK_THROTTLE = -0.70
 local TURN_SPEED_MS = 0.20
 local TURN_RATE_DEG_S = 20
 local TURN_DIR = 1
@@ -434,9 +435,14 @@ local function update()
       fault("backup command failed")
       return
     end
+    local throttle_pwm = SRV_Channels:get_output_pwm(SERVO_THROTTLE_FUNCTION)
     report_limited(
       MAV_SEVERITY.INFO,
-      string.format("LUAOA463: backing thr=%.2f", BACK_THROTTLE)
+      string.format(
+        "LUAOA463: back thr=%.2f pwm=%s",
+        BACK_THROTTLE,
+        tostring(throttle_pwm)
+      )
     )
 
     if elapsed_ms() >= BACK_MS then

@@ -2,7 +2,7 @@
 
 ![CC-02 Lua障害物回避プロジェクト概要](images/cc02-lua-obstacle-avoidance-overview.png)
 
-更新日: 2026-06-20
+更新日: 2026-07-26
 
 対象: CC-02 ArduRover、ArduRover 4.6.3、前方TF-Luna、Rover SITL、Lua
 
@@ -13,6 +13,8 @@ CC-02 Roverには、前方TF-Lunaを使ったArduPilot標準のSimple Object Avo
 次の開発目標は、この実機ベースラインを壊さず、Rover SITLでLuaの距離判定と制御状態機械を先に検証し、その後に実機TF-Lunaへ移すこととする。
 
 ArduRover 4.6.3実機向けの段階試験候補は`Scripts/luaoa_guided_avoid_rover463.lua`として、最新版SITL用Luaとは別に保存する。`SCR_USER1=0`の監視から開始し、専用の[実機テスト手順](07_実機テスト手順.md)を通過した段階だけを有効にする。
+
+2026-07-26の実機移行で判明したセンサー値、パラメータ差、後退出力の問題と再発防止策は、[SITLから実機移行で起きた問題と再発防止](08_SITLから実機移行で起きた問題と再発防止.md)にまとめる。
 
 前方センサーが1個だけなので、確実に判断できるのは「現在の進行方向に障害物がある」「停止すべき」である。左右の空きを同時に観測して安全な方向を選ぶことはできない。
 
@@ -184,6 +186,7 @@ QuikTune用スクリプトとの同時実行も避ける。新しいLua試験用
 - [SITL Luaサンプルスクリプト](05_SITL_Luaサンプルスクリプト.md)
 - [最低限Guided回避Lua解説](06_MinGuided回避Lua解説.md)
 - [Lua障害物回避 実機テスト手順](07_実機テスト手順.md)
+- [SITLから実機移行で起きた問題と再発防止](08_SITLから実機移行で起きた問題と再発防止.md)
 - [REPLでLua APIを確認する](補助機能/12_REPLでLuaAPIを確認する.md)
 - [仮想ポストKML表示補助](補助機能/10_MP_仮想ポストKML表示補助.md)
 - [現在状況](../01_現在状況.md)

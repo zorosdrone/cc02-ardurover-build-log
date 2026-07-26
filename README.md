@@ -134,6 +134,7 @@ Git LFS対象:
 - [SITL Luaサンプルスクリプト](docs/03_Lua障害物回避/05_SITL_Luaサンプルスクリプト.md)
 - [最低限Guided回避Lua解説](docs/03_Lua障害物回避/06_MinGuided回避Lua解説.md)
 - [Lua障害物回避 実機テスト手順](docs/03_Lua障害物回避/07_実機テスト手順.md)
+- [SITLから実機移行で起きた問題と再発防止](docs/03_Lua障害物回避/08_SITLから実機移行で起きた問題と再発防止.md)
 - [仮想ポストKML表示補助](docs/03_Lua障害物回避/補助機能/10_MP_仮想ポストKML表示補助.md)
 
 ### 参照
