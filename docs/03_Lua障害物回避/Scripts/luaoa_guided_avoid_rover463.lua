@@ -22,7 +22,7 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260726-rover463-staged-v4"
+local SCRIPT_VERSION = "20260726-rover463-staged-v5"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
@@ -122,14 +122,18 @@ local function read_front_m()
 
   local distance_cm = rangefinder:distance_cm_orient(FRONT_ORIENT)
 
-  -- Some real sensors report zero distance when the target is outside
-  -- their measurable range.  Use the ArduPilot status to distinguish
-  -- "farther than maximum" from "closer than minimum".
+  -- This vehicle's TF-Luna reports 0 cm / OutOfRangeLow when no target
+  -- is present in front.  Treat exactly 0 cm as farther than maximum.
+  -- A positive OutOfRangeLow distance remains a close obstacle.
   if status == RF_STATUS_OUT_OF_RANGE_HIGH then
     local max_cm = rangefinder:max_distance_cm_orient(FRONT_ORIENT)
     return math.max(distance_cm, max_cm) * 0.01, status
   end
   if status == RF_STATUS_OUT_OF_RANGE_LOW then
+    if distance_cm == 0 then
+      local max_cm = rangefinder:max_distance_cm_orient(FRONT_ORIENT)
+      return max_cm * 0.01, status
+    end
     return math.max(distance_cm, 0) * 0.01, status
   end
   if status ~= RF_STATUS_GOOD or distance_cm <= 0 then
