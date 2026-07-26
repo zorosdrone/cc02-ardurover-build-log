@@ -22,13 +22,10 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260726-rover463-staged-v5"
+local SCRIPT_VERSION = "20260726-rover463-staged-v6"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
-local RF_STATUS_OUT_OF_RANGE_LOW = 2
-local RF_STATUS_OUT_OF_RANGE_HIGH = 3
-local RF_STATUS_GOOD = 4
 
 -- 現行パラメータのTF-Luna設定（20 cm～4 m）の内側で判定する。
 local WARN_M = 3.0
@@ -121,25 +118,6 @@ local function read_front_m()
   end
 
   local distance_cm = rangefinder:distance_cm_orient(FRONT_ORIENT)
-
-  -- This vehicle's TF-Luna reports 0 cm / OutOfRangeLow when no target
-  -- is present in front.  Treat exactly 0 cm as farther than maximum.
-  -- A positive OutOfRangeLow distance remains a close obstacle.
-  if status == RF_STATUS_OUT_OF_RANGE_HIGH then
-    local max_cm = rangefinder:max_distance_cm_orient(FRONT_ORIENT)
-    return math.max(distance_cm, max_cm) * 0.01, status
-  end
-  if status == RF_STATUS_OUT_OF_RANGE_LOW then
-    if distance_cm == 0 then
-      local max_cm = rangefinder:max_distance_cm_orient(FRONT_ORIENT)
-      return max_cm * 0.01, status
-    end
-    return math.max(distance_cm, 0) * 0.01, status
-  end
-  if status ~= RF_STATUS_GOOD or distance_cm <= 0 then
-    return nil, status
-  end
-
   return distance_cm * 0.01, status
 end
 
@@ -276,6 +254,7 @@ local function update()
 
   local level = requested_level()
   local distance_m, range_status = read_front_m()
+  local zero_means_clear = distance_m == 0
 
   if not is_guided_and_armed() then
     if state ~= "IDLE" then
@@ -350,7 +329,14 @@ local function update()
       return
     end
 
-    if distance_m <= STOP_M then
+    if zero_means_clear then
+      detect_count = 0
+      report_limited(
+        MAV_SEVERITY.INFO,
+        string.format("LUAOA463: clear 0.00 m st=%s", tostring(range_status))
+      )
+    elseif distance_m <= STOP_M then
+      clear_count = 0
       detect_count = detect_count + 1
       if detect_count >= REQUIRED_COUNT then
         if saved_target == nil then
@@ -389,7 +375,15 @@ local function update()
       return
     end
 
-    if distance_m <= STOP_M then
+    if zero_means_clear then
+      detect_count = 0
+      clear_count = clear_count + 1
+      if clear_count >= REQUIRED_COUNT then
+        clear_count = 0
+        enter("CLEAR", "zero distance means no target")
+      end
+    elseif distance_m <= STOP_M then
+      clear_count = 0
       detect_count = detect_count + 1
       if detect_count >= REQUIRED_COUNT then
         if saved_target == nil then
@@ -472,7 +466,9 @@ local function update()
       return
     end
 
-    if distance_m >= RESUME_M then
+    if zero_means_clear then
+      enter("RESUME", "zero distance means no target")
+    elseif distance_m >= RESUME_M then
       enter("RESUME", string.format("distance %.2f m", distance_m))
     else
       try_count = try_count + 1
