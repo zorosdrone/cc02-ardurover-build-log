@@ -7,9 +7,9 @@ tmp/
 *.ulg
 *.tlog
 
-# 採用ログだけは Git LFS で管理する。
-!logs/accepted/
-!logs/accepted/**
+# 各プロジェクトの採用ログだけは Git LFS で管理する。
+!projects/**/logs/accepted/
+!projects/**/logs/accepted/**
 
 # ローカル環境の不要ファイル
 .DS_Store
