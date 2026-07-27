@@ -11,8 +11,13 @@
 --   1 = 減速、停止、停止保持。後退しない。
 --   2 = 減速、停止、短距離直進後退、停止保持。旋回しない。
 --   3 = 減速、停止、直進後退、前進旋回、再確認、Target復帰。
+-- SCR_USER2 = 直進後退時間 [s]。0で既定値2.25。
+-- SCR_USER3 = 前進旋回時間 [s]。0で既定値4.5。
+-- SCR_USER4 = 前進旋回速度 [m/s]。0で既定値0.20。
+-- SCR_USER5 = 符号付き旋回率 [deg/s]。0で既定値+40。
+-- SCR_USER6 = 後退スロットル。0で既定値-0.70。
 --
--- 制御レベルはGuided + Armed + Target取得時に固定する。
+-- 制御レベルとSCR_USER2～6はGuided + Armed + Target取得時に固定する。
 -- 走行中のレベル引上げは無視する。レベル引下げは即時停止保持する。
 
 local MAV_SEVERITY = {
@@ -22,7 +27,7 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260727-rover463-staged-v9.1"
+local SCRIPT_VERSION = "20260727-rover463-staged-v9.2"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
@@ -38,18 +43,17 @@ local REQUIRED_COUNT = 3
 -- 初回実機試験用の低速値。
 local RUN_SPEED_MS = 0.30
 local SLOW_SPEED_MS = 0.15
-local BACK_THROTTLE = -0.70
-local TURN_SPEED_MS = 0.20
-local TURN_RATE_DEG_S = 20
-local TURN_DIR = 1
+local DEFAULT_BACK_THROTTLE = -0.70
+local DEFAULT_TURN_SPEED_MS = 0.20
+local DEFAULT_TURN_RATE_DEG_S = 40
 
 local STOP_HOLD_MS = 1500
-local BACK_MS = 4500
+local DEFAULT_BACK_MS = 2250
 -- MOT_SLEWRATE=100でニュートラルから-70%へ到達する時間を見込み、
 -- 1秒後の実PWMがログで確認した後退境界へ入ったか検査する。
 local BACK_PWM_CHECK_DELAY_MS = 1000
 local BACK_PWM_MAX_US = 1405
-local TURN_MS = 4500
+local DEFAULT_TURN_MS = 4500
 local RECHECK_SETTLE_MS = 700
 local MAX_TRY = 5
 local REPORT_INTERVAL_MS = 1000
@@ -66,6 +70,11 @@ local active_level = 0
 local version_reported = false
 local increase_warned = false
 local backup_pwm_confirmed = false
+local cfg_back_throttle = DEFAULT_BACK_THROTTLE
+local cfg_turn_speed_ms = DEFAULT_TURN_SPEED_MS
+local cfg_turn_rate_deg_s = DEFAULT_TURN_RATE_DEG_S
+local cfg_back_ms = DEFAULT_BACK_MS
+local cfg_turn_ms = DEFAULT_TURN_MS
 
 local function now_ms()
   return millis():toint()
@@ -119,6 +128,75 @@ local function requested_level()
     return 3
   end
   return level
+end
+
+local function user_value_or_default(name, default_value)
+  local value = param:get(name)
+  if value == nil then
+    return nil
+  end
+  if value == 0 then
+    return default_value
+  end
+  return value
+end
+
+local function load_tunable_config()
+  local back_s = user_value_or_default("SCR_USER2", DEFAULT_BACK_MS * 0.001)
+  local turn_s = user_value_or_default("SCR_USER3", DEFAULT_TURN_MS * 0.001)
+  local turn_speed =
+    user_value_or_default("SCR_USER4", DEFAULT_TURN_SPEED_MS)
+  local turn_rate =
+    user_value_or_default("SCR_USER5", DEFAULT_TURN_RATE_DEG_S)
+  local back_throttle =
+    user_value_or_default("SCR_USER6", DEFAULT_BACK_THROTTLE)
+
+  if back_s == nil or turn_s == nil or turn_speed == nil or
+     turn_rate == nil or back_throttle == nil then
+    return false, "SCR_USER2-6 unavailable"
+  end
+  if back_s < 0.5 or back_s > 10 then
+    return false, "SCR_USER2 range 0.5-10 s"
+  end
+  if turn_s < 0.5 or turn_s > 20 then
+    return false, "SCR_USER3 range 0.5-20 s"
+  end
+  if turn_speed < 0.05 or turn_speed > 1.0 then
+    return false, "SCR_USER4 range 0.05-1.0 m/s"
+  end
+  if math.abs(turn_rate) < 5 or math.abs(turn_rate) > 120 then
+    return false, "SCR_USER5 abs range 5-120 deg/s"
+  end
+  if back_throttle < -1.0 or back_throttle > -0.1 then
+    return false, "SCR_USER6 range -1.0 to -0.1"
+  end
+
+  cfg_back_ms = math.floor(back_s * 1000 + 0.5)
+  cfg_turn_ms = math.floor(turn_s * 1000 + 0.5)
+  cfg_turn_speed_ms = turn_speed
+  cfg_turn_rate_deg_s = turn_rate
+  cfg_back_throttle = back_throttle
+  return true, "ok"
+end
+
+local function report_tunable_config()
+  report(
+    MAV_SEVERITY.NOTICE,
+    string.format(
+      "LUAOA463: cfg b=%.2f t=%.2f v=%.2f",
+      cfg_back_ms * 0.001,
+      cfg_turn_ms * 0.001,
+      cfg_turn_speed_ms
+    )
+  )
+  report(
+    MAV_SEVERITY.NOTICE,
+    string.format(
+      "LUAOA463: cfg r=%.1f q=%.2f",
+      cfg_turn_rate_deg_s,
+      cfg_back_throttle
+    )
+  )
 end
 
 local function read_front_m()
@@ -242,9 +320,9 @@ local function validate_control_config()
 
   local expected_back_pwm =
     servo3_trim -
-    (servo3_trim - servo3_min) * math.abs(BACK_THROTTLE)
+    (servo3_trim - servo3_min) * math.abs(cfg_back_throttle)
   if expected_back_pwm > BACK_PWM_MAX_US then
-    return false, "BACK_THROTTLE cannot reach reverse pwm limit"
+    return false, "SCR_USER6 cannot reach reverse pwm limit"
   end
 
   return true, "ok"
@@ -293,6 +371,7 @@ local function update()
   if not version_reported then
     report(MAV_SEVERITY.NOTICE, "LUAOA463: loaded " .. SCRIPT_VERSION)
     report(MAV_SEVERITY.NOTICE, "LUAOA463: SCR_USER1 0=monitor 1=stop 2=back 3=full")
+    report(MAV_SEVERITY.NOTICE, "LUAOA463: SCR_USER2-6 runtime tune; 0=default")
     version_reported = true
   end
 
@@ -311,6 +390,12 @@ local function update()
   if state == "IDLE" then
     if level == 0 then
       monitor_only(distance_m, level, range_status)
+      return
+    end
+
+    local tunable_ok, tunable_reason = load_tunable_config()
+    if not tunable_ok then
+      fault(tunable_reason)
       return
     end
 
@@ -338,6 +423,7 @@ local function update()
       MAV_SEVERITY.NOTICE,
       string.format("LUAOA463: control level %d latched", active_level)
     )
+    report_tunable_config()
     enter("CLEAR", "guided target ready")
     return
   end
@@ -473,13 +559,12 @@ local function update()
   if state == "BACKUP" then
     -- The current vehicle's reverse output range is narrower than forward.
     -- Direct throttle targets the reverse PWM region measured during Manual.
-    -- v8.1 confirmed physical reverse, but 1.8 s moved only a few centimetres.
-    -- v9.1 keeps steering neutral during the 4.5 s straight reverse,
-    -- matching the SITL BACKUP phase while using the verified real throttle.
+    -- v9.2 keeps steering neutral during straight reverse and uses the
+    -- latched SCR_USER6 throttle. Default time is 2.25 s.
     local steering_cmd = 0
     if not vehicle:set_steering_and_throttle(
       steering_cmd,
-      BACK_THROTTLE
+      cfg_back_throttle
     ) then
       fault("backup command failed")
       return
@@ -492,7 +577,7 @@ local function update()
         "LUAOA463: back s=%.2f/%s t=%.2f/%s",
         steering_cmd,
         tostring(steering_pwm),
-        BACK_THROTTLE,
+        cfg_back_throttle,
         tostring(throttle_pwm)
       )
     )
@@ -524,7 +609,7 @@ local function update()
       )
     end
 
-    if elapsed_ms() >= BACK_MS then
+    if elapsed_ms() >= cfg_back_ms then
       if active_level == 2 then
         enter("HOLD", "level 2 backup command time complete")
       else
@@ -536,8 +621,8 @@ local function update()
 
   if state == "TURN" then
     if not vehicle:set_desired_turn_rate_and_speed(
-      TURN_RATE_DEG_S * TURN_DIR,
-      TURN_SPEED_MS
+      cfg_turn_rate_deg_s,
+      cfg_turn_speed_ms
     ) then
       fault("turn command failed")
       return
@@ -548,15 +633,15 @@ local function update()
     report_limited(
       MAV_SEVERITY.INFO,
       string.format(
-        "LUAOA463: turn r=%d s=%.2f p=%s/%s",
-        TURN_RATE_DEG_S * TURN_DIR,
-        TURN_SPEED_MS,
+        "LUAOA463: turn r=%.1f s=%.2f p=%s/%s",
+        cfg_turn_rate_deg_s,
+        cfg_turn_speed_ms,
         tostring(steering_pwm),
         tostring(throttle_pwm)
       )
     )
 
-    if elapsed_ms() >= TURN_MS then
+    if elapsed_ms() >= cfg_turn_ms then
       enter("RECHECK", "turn command time complete")
     end
     return
