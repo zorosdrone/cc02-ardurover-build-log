@@ -12,7 +12,7 @@
 --   2 = 減速、停止、短距離直進後退、停止保持。旋回しない。
 --   3 = 減速、停止、直進後退、前進旋回、再確認、Target復帰。
 -- SCR_USER2 = 直進後退時間 [s]。0で既定値2.25。
--- SCR_USER3 = 前進旋回時間 [s]。0で既定値4.5。
+-- SCR_USER3 = 前進旋回時間 [s]。0で既定値6.0。
 -- SCR_USER4 = 前進旋回速度 [m/s]。0で既定値0.20。
 -- SCR_USER5 = 符号付き旋回率 [deg/s]。0で既定値+40。
 -- SCR_USER6 = 後退スロットル。0で既定値-0.70。
@@ -41,7 +41,7 @@ local RESUME_M = 3.5
 local REQUIRED_COUNT = 3
 
 -- 初回実機試験用の低速値。
-local RUN_SPEED_MS = 0.50 
+local RUN_SPEED_MS = 0.50
 local SLOW_SPEED_MS = 0.25
 local DEFAULT_BACK_THROTTLE = -0.70
 local DEFAULT_TURN_SPEED_MS = 0.20
@@ -53,7 +53,7 @@ local DEFAULT_BACK_MS = 2250
 -- 1秒後の実PWMがログで確認した後退境界へ入ったか検査する。
 local BACK_PWM_CHECK_DELAY_MS = 1000
 local BACK_PWM_MAX_US = 1405
-local DEFAULT_TURN_MS = 4500
+local DEFAULT_TURN_MS = 6000
 local RECHECK_SETTLE_MS = 700
 local MAX_TRY = 5
 local REPORT_INTERVAL_MS = 1000
