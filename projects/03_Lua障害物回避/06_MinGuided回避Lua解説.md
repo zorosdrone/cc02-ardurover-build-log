@@ -2,6 +2,8 @@
 
 更新日: 2026-06-30
 
+> 本書はSITL学習版`luaoa_min_guided_avoid.lua`の解説であり、実機用`luaoa_guided_avoid_rover463.lua`の現行設定ではない。実機の現状は[プロジェクト概要](README.md)と[実機テスト手順](07_実機テスト手順.md)を参照する。
+
 対象スクリプト: [luaoa_min_guided_avoid.lua](scripts/luaoa_min_guided_avoid.lua)
 
 ## 結論

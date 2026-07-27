@@ -4,6 +4,8 @@
 
 対象: Rover最新版SITL、Lua Scripting、前方Rangefinder、Guided制御
 
+> 本書はSITL学習版`luaoa_min_guided_avoid.lua`の説明である。ArduRover 4.6.3実機の現行値と手順は、[プロジェクト概要](README.md)と[実機テスト手順](07_実機テスト手順.md)を参照する。
+
 ## 結論
 
 この文書は、保存済みLuaサンプルをRover SITLで実行するための手順である。

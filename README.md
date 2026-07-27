@@ -14,7 +14,7 @@
 - Simple Object Avoidance確認済み: Acro低速停止、Guided中の障害物停止
 - RTL / SmartRTL確認済み。ただしRTL / SmartRTL中のLiDARは停止保証として扱わない
 
-詳細は [現在状況](docs/01_現在状況.md) と [チューニングログ](projects/02_チューニング/09_チューニングログ.md) を参照してください。`Lua障害物回避`は、実機ファームウェアに合わせたArduRover 4.6.3 SITL手順を基準に、前方Rangefinderと仮想ポスト表示の検証を進めています。
+詳細は [現在状況](docs/01_現在状況.md) と [チューニングログ](projects/02_チューニング/09_チューニングログ.md) を参照してください。`Lua障害物回避`はSITL検証からArduRover 4.6.3実機の限定回避試験へ移行し、直進後退、前進旋回、前方再確認、Guided Target復帰まで確認済みです。現行設定と未解決事項は[プロジェクト概要](projects/03_Lua障害物回避/README.md)にまとめています。
 
 ## 目的
 
@@ -134,6 +134,8 @@ Git LFS対象:
 - [最低限Guided回避Lua解説](projects/03_Lua障害物回避/06_MinGuided回避Lua解説.md)
 - [Lua障害物回避 実機テスト手順](projects/03_Lua障害物回避/07_実機テスト手順.md)
 - [SITLから実機移行で起きた問題と再発防止](projects/03_Lua障害物回避/08_SITLから実機移行で起きた問題と再発防止.md)
+- [2026-07-27 Lua試験後パラメータ](projects/03_Lua障害物回避/params/20260727_01_after_luaoa_v93_avoid_test.param)
+- [Lua障害物回避動画](projects/03_Lua障害物回避/videos/Rover_Lua_Obstacle_Avoidance.mp4)
 - [仮想ポストKML表示補助](projects/03_Lua障害物回避/補助機能/10_MP_仮想ポストKML表示補助.md)
 
 ### WebGCS遠隔操作
