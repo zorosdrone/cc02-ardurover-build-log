@@ -27,7 +27,7 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260727-rover463-staged-v9.2"
+local SCRIPT_VERSION = "20260727-rover463-staged-v9.3"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
@@ -36,13 +36,13 @@ local SERVO_THROTTLE_FUNCTION = 70
 
 -- 現行パラメータのTF-Luna設定（20 cm～4 m）の内側で判定する。
 local WARN_M = 3.0
-local STOP_M = 2.0
+local STOP_M = 1.0
 local RESUME_M = 3.5
 local REQUIRED_COUNT = 3
 
 -- 初回実機試験用の低速値。
-local RUN_SPEED_MS = 0.30
-local SLOW_SPEED_MS = 0.15
+local RUN_SPEED_MS = 0.50 
+local SLOW_SPEED_MS = 0.25
 local DEFAULT_BACK_THROTTLE = -0.70
 local DEFAULT_TURN_SPEED_MS = 0.20
 local DEFAULT_TURN_RATE_DEG_S = 40
