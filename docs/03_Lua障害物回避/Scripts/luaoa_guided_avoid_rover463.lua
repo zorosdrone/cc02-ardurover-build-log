@@ -9,8 +9,8 @@
 -- SCR_USER1:
 --   0 = 監視のみ。走行指令を出さない。
 --   1 = 減速、停止、停止保持。後退しない。
---   2 = 減速、停止、短距離後退、停止保持。旋回しない。
---   3 = 減速、停止、短距離後退、短時間旋回、再確認、Target復帰。
+--   2 = 減速、停止、短距離直進後退、停止保持。旋回しない。
+--   3 = 減速、停止、直進後退、前進旋回、再確認、Target復帰。
 --
 -- 制御レベルはGuided + Armed + Target取得時に固定する。
 -- 走行中のレベル引上げは無視する。レベル引下げは即時停止保持する。
@@ -22,10 +22,11 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260727-rover463-staged-v8.1"
+local SCRIPT_VERSION = "20260727-rover463-staged-v9.1"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
+local SERVO_STEERING_FUNCTION = 26
 local SERVO_THROTTLE_FUNCTION = 70
 
 -- 現行パラメータのTF-Luna設定（20 cm～4 m）の内側で判定する。
@@ -43,12 +44,12 @@ local TURN_RATE_DEG_S = 20
 local TURN_DIR = 1
 
 local STOP_HOLD_MS = 1500
-local BACK_MS = 1800
+local BACK_MS = 4500
 -- MOT_SLEWRATE=100でニュートラルから-70%へ到達する時間を見込み、
 -- 1秒後の実PWMがログで確認した後退境界へ入ったか検査する。
 local BACK_PWM_CHECK_DELAY_MS = 1000
 local BACK_PWM_MAX_US = 1405
-local TURN_MS = 1200
+local TURN_MS = 4500
 local RECHECK_SETTLE_MS = 700
 local MAX_TRY = 5
 local REPORT_INTERVAL_MS = 1000
@@ -195,6 +196,7 @@ local function validate_control_config()
   local max_cm = param:get("RNGFND1_MAX_CM")
   local orient = param:get("RNGFND1_ORIENT")
   local avoid_enable = param:get("AVOID_ENABLE")
+  local servo1_function = param:get("SERVO1_FUNCTION")
   local servo3_function = param:get("SERVO3_FUNCTION")
   local servo3_min = param:get("SERVO3_MIN")
   local servo3_trim = param:get("SERVO3_TRIM")
@@ -214,6 +216,12 @@ local function validate_control_config()
   end
   if avoid_enable == nil or avoid_enable ~= 0 then
     return false, "AVOID_ENABLE must be 0"
+  end
+  if servo1_function == nil then
+    return false, "steering servo params unavailable"
+  end
+  if servo1_function ~= SERVO_STEERING_FUNCTION then
+    return false, "SERVO1_FUNCTION must be 26"
   end
   if servo3_function == nil or servo3_min == nil or
      servo3_trim == nil or servo3_reversed == nil then
@@ -465,16 +473,25 @@ local function update()
   if state == "BACKUP" then
     -- The current vehicle's reverse output range is narrower than forward.
     -- Direct throttle targets the reverse PWM region measured during Manual.
-    -- Physical reverse with this v8.1 command is still an on-vehicle test item.
-    if not vehicle:set_steering_and_throttle(0, BACK_THROTTLE) then
+    -- v8.1 confirmed physical reverse, but 1.8 s moved only a few centimetres.
+    -- v9.1 keeps steering neutral during the 4.5 s straight reverse,
+    -- matching the SITL BACKUP phase while using the verified real throttle.
+    local steering_cmd = 0
+    if not vehicle:set_steering_and_throttle(
+      steering_cmd,
+      BACK_THROTTLE
+    ) then
       fault("backup command failed")
       return
     end
+    local steering_pwm = SRV_Channels:get_output_pwm(SERVO_STEERING_FUNCTION)
     local throttle_pwm = SRV_Channels:get_output_pwm(SERVO_THROTTLE_FUNCTION)
     report_limited(
       MAV_SEVERITY.INFO,
       string.format(
-        "LUAOA463: back thr=%.2f pwm=%s",
+        "LUAOA463: back s=%.2f/%s t=%.2f/%s",
+        steering_cmd,
+        tostring(steering_pwm),
         BACK_THROTTLE,
         tostring(throttle_pwm)
       )
@@ -526,8 +543,21 @@ local function update()
       return
     end
 
+    local steering_pwm = SRV_Channels:get_output_pwm(SERVO_STEERING_FUNCTION)
+    local throttle_pwm = SRV_Channels:get_output_pwm(SERVO_THROTTLE_FUNCTION)
+    report_limited(
+      MAV_SEVERITY.INFO,
+      string.format(
+        "LUAOA463: turn r=%d s=%.2f p=%s/%s",
+        TURN_RATE_DEG_S * TURN_DIR,
+        TURN_SPEED_MS,
+        tostring(steering_pwm),
+        tostring(throttle_pwm)
+      )
+    )
+
     if elapsed_ms() >= TURN_MS then
-      enter("RECHECK", "turn complete")
+      enter("RECHECK", "turn command time complete")
     end
     return
   end
