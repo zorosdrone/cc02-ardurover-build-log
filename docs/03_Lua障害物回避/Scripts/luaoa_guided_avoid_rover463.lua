@@ -22,7 +22,7 @@ local MAV_SEVERITY = {
   INFO = 6,
 }
 
-local SCRIPT_VERSION = "20260726-rover463-staged-v8"
+local SCRIPT_VERSION = "20260727-rover463-staged-v8.1"
 
 local MODE_GUIDED = 15
 local FRONT_ORIENT = 0
@@ -44,6 +44,10 @@ local TURN_DIR = 1
 
 local STOP_HOLD_MS = 1500
 local BACK_MS = 1800
+-- MOT_SLEWRATE=100でニュートラルから-70%へ到達する時間を見込み、
+-- 1秒後の実PWMがログで確認した後退境界へ入ったか検査する。
+local BACK_PWM_CHECK_DELAY_MS = 1000
+local BACK_PWM_MAX_US = 1405
 local TURN_MS = 1200
 local RECHECK_SETTLE_MS = 700
 local MAX_TRY = 5
@@ -60,6 +64,7 @@ local saved_target = nil
 local active_level = 0
 local version_reported = false
 local increase_warned = false
+local backup_pwm_confirmed = false
 
 local function now_ms()
   return millis():toint()
@@ -86,6 +91,9 @@ local function enter(new_state, reason)
   end
   state = new_state
   state_start_ms = now_ms()
+  if new_state == "BACKUP" then
+    backup_pwm_confirmed = false
+  end
 end
 
 local function elapsed_ms()
@@ -187,6 +195,10 @@ local function validate_control_config()
   local max_cm = param:get("RNGFND1_MAX_CM")
   local orient = param:get("RNGFND1_ORIENT")
   local avoid_enable = param:get("AVOID_ENABLE")
+  local servo3_function = param:get("SERVO3_FUNCTION")
+  local servo3_min = param:get("SERVO3_MIN")
+  local servo3_trim = param:get("SERVO3_TRIM")
+  local servo3_reversed = param:get("SERVO3_REVERSED")
 
   if min_cm == nil or max_cm == nil or orient == nil then
     return false, "rangefinder params unavailable"
@@ -202,6 +214,29 @@ local function validate_control_config()
   end
   if avoid_enable == nil or avoid_enable ~= 0 then
     return false, "AVOID_ENABLE must be 0"
+  end
+  if servo3_function == nil or servo3_min == nil or
+     servo3_trim == nil or servo3_reversed == nil then
+    return false, "throttle servo params unavailable"
+  end
+  if servo3_function ~= SERVO_THROTTLE_FUNCTION then
+    return false, "SERVO3_FUNCTION must be 70"
+  end
+  if servo3_reversed ~= 0 then
+    return false, "SERVO3_REVERSED must be 0"
+  end
+  if servo3_trim ~= 1500 then
+    return false, "SERVO3_TRIM must be 1500"
+  end
+  if servo3_min > BACK_PWM_MAX_US then
+    return false, "SERVO3_MIN above reverse pwm limit"
+  end
+
+  local expected_back_pwm =
+    servo3_trim -
+    (servo3_trim - servo3_min) * math.abs(BACK_THROTTLE)
+  if expected_back_pwm > BACK_PWM_MAX_US then
+    return false, "BACK_THROTTLE cannot reach reverse pwm limit"
   end
 
   return true, "ok"
@@ -429,8 +464,8 @@ local function update()
 
   if state == "BACKUP" then
     -- The current vehicle's reverse output range is narrower than forward.
-    -- Direct throttle reliably reaches the ESC reverse region; the previous
-    -- -0.20 m/s speed command was accepted but did not move the vehicle.
+    -- Direct throttle targets the reverse PWM region measured during Manual.
+    -- Physical reverse with this v8.1 command is still an on-vehicle test item.
     if not vehicle:set_steering_and_throttle(0, BACK_THROTTLE) then
       fault("backup command failed")
       return
@@ -445,11 +480,38 @@ local function update()
       )
     )
 
+    if elapsed_ms() >= BACK_PWM_CHECK_DELAY_MS and
+       not backup_pwm_confirmed then
+      if type(throttle_pwm) ~= "number" then
+        fault("backup pwm unavailable")
+        return
+      end
+      if throttle_pwm > BACK_PWM_MAX_US then
+        fault(
+          string.format(
+            "backup pwm %d > %d",
+            throttle_pwm,
+            BACK_PWM_MAX_US
+          )
+        )
+        return
+      end
+
+      backup_pwm_confirmed = true
+      report(
+        MAV_SEVERITY.NOTICE,
+        string.format(
+          "LUAOA463: back pwm ok %d; motion unverified",
+          throttle_pwm
+        )
+      )
+    end
+
     if elapsed_ms() >= BACK_MS then
       if active_level == 2 then
-        enter("HOLD", "level 2 backup complete")
+        enter("HOLD", "level 2 backup command time complete")
       else
-        enter("TURN", "backup complete")
+        enter("TURN", "backup command time complete")
       end
     end
     return
