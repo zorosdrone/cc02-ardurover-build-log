@@ -1,121 +1,108 @@
 # CC-02 ArduRover 実機ビルドログ
 
-このリポジトリは、タミヤ CC-02 ベースの ArduRover 実機について、FC換装、配線変更、ArduRoverパラメータ、チューニング、走行試験、トラブルシュートを記録するための作業ログです。
+タミヤ CC-02をベースにしたArduRover実機の構成、FC換装、配線、パラメータ、チューニング、走行試験、障害物回避、遠隔操作、トラブルシュートを記録するリポジトリです。
+
+WebGCSアプリ本体のソースコードは別リポジトリの [rover-gcs](https://github.com/zorosdrone/rover-gcs) で管理し、このリポジトリには実機側の根拠資料と検証結果を保存します。
 
 ## 現在の状態
 
-2026-06-13時点で、Pixhawk 6C Mini換装後の屋外低速チューニングは一通り完了しています。
+最終スナップショットは **2026-07-28** です。詳細と次回作業は [現在状況](docs/01_現在状況.md) を参照してください。
 
-- 通常運用向け終了版: `projects/02_チューニング/params/tuned/20260613_pixhawk6c_rover_tuned_01.param`
-- QuikTune直後版: `projects/02_チューニング/params/tuned/20260613_06_after_quiktune.param`
-- BendyRuler実験版: `projects/02_チューニング/params/tuned/20260613_08_oa_type1_bendyruler_test.param`
-- Rover QuikTune完了: `RTun: Tuning DONE` / `RTun: tuning gains saved`
-- Battery failsafe確認済み: Low=RTL、Critical=Hold
-- Simple Object Avoidance確認済み: Acro低速停止、Guided中の障害物停止
-- RTL / SmartRTL確認済み。ただしRTL / SmartRTL中のLiDARは停止保証として扱わない
+### 通常運用の基準
 
-詳細は [現在状況](docs/01_現在状況.md) と [チューニングログ](projects/02_チューニング/09_チューニングログ.md) を参照してください。`Lua障害物回避`はSITL検証からArduRover 4.6.3実機の限定回避試験へ移行し、直進後退、前進旋回、前方再確認、Guided Target復帰まで確認済みです。現行設定と未解決事項は[プロジェクト概要](projects/03_Lua障害物回避/README.md)にまとめています。
+| 項目 | 現状 |
+| --- | --- |
+| ベース車両 | タミヤ CC-02 |
+| フライトコントローラ | Holybro Pixhawk 6C Mini Model A |
+| ファームウェア | ArduRover 4.6.3系 |
+| GPS / Compass | M10 GPS + IST8310、`GPS1`接続 |
+| 距離センサー | Benewake TF-Luna、`TELEM2`接続 |
+| Raspberry Pi / MAVLink | `TELEM1`接続 |
+| 通常運用パラメータ | [`20260613_pixhawk6c_rover_tuned_01.param`](projects/02_チューニング/params/tuned/20260613_pixhawk6c_rover_tuned_01.param) |
+| 通常運用の障害物対応 | `OA_TYPE=0` のSimple Object Avoidance |
 
-## 目的
+2026-06-13までに、屋外低速チューニング、Rover QuikTune、Battery failsafe、RTL / SmartRTL、Acro低速とGuidedでの障害物前停止を確認しました。`OA_TYPE=1` のBendyRulerは河原で地面や石の反射の影響が大きく、実験用のままです。
 
-- FC換装作業を記録する
-- 配線とハードウェア変更を追跡する
-- ArduRoverパラメータの履歴を保存する
-- チューニング内容と結果を記録する
-- 走行試験の条件、結果、課題を残す
-- 再解析価値の高い代表ログをGit LFSで保存する
-- 公開用の走行・チューニング動画をGit LFSで保存する
-- 実機用小物部品のOpenSCAD設計元とSTL出力を保存する
-- トラブルシュートの経緯を再利用できる形で保存する
+### Lua障害物回避
 
-## 関連リポジトリ
+SITLで状態機械とGuided Target復帰を確認した後、ArduRover 4.6.3実機へ移行しました。実機v9.1で、次の一連の限定回避を確認済みです。
 
-GCSアプリ本体は別リポジトリで管理します。
+```text
+直進後退
+  -> 前進旋回
+  -> 前方再確認
+  -> Guided Target復帰
+```
 
-- `rover-gcs`
+現行の実機用スクリプトは [`luaoa_guided_avoid_rover463.lua`](projects/03_Lua障害物回避/scripts/luaoa_guided_avoid_rover463.lua) です。コード内容はv9.4相当で、停止距離`1.0 m`、走行速度`0.50 m/s`、後退`2.25秒`、前進旋回`6.0秒`を基準にしています。
 
-`rover-gcs` に含まれるハードウェア資料は、初期プロトタイプ時点の記録としてそのまま残します。今後の最新実機構成、FC換装、配線、パラメータ、チューニング、走行試験記録は、この `cc02-ardurover-build-log` 側に積み上げます。
+ただし、次の点は未完了です。
+
+- コード内の起動識別子が`20260727-rover463-staged-v9.3`のままで、v9.4相当の内容と一致していない
+- 後退距離、旋回角、最小離隔の定量測定
+- TF-Lunaの対象なし値`0.00～0.02 m / st=2`と極近距離障害物の識別
+- 前方センサー1台では確認できない横方向・後方の安全検知
+
+このため、Lua版は通常運用設定ではなく、段階ゲート付きの**限定試験版**として扱います。試験後は通常運用パラメータへ戻してください。
+
+主な根拠:
+
+- [Lua障害物回避プロジェクト概要](projects/03_Lua障害物回避/README.md)
+- [実機テスト手順](projects/03_Lua障害物回避/07_実機テスト手順.md)
+- [SITLから実機移行で起きた問題と再発防止](projects/03_Lua障害物回避/08_SITLから実機移行で起きた問題と再発防止.md)
+- [Lua後退失敗のBINログ解析](projects/03_Lua障害物回避/logs/test_runs/20260726_01_lua_backup_failure_bin_analysis.md)
+- [2026-07-27試験後パラメータ](projects/03_Lua障害物回避/params/20260727_01_after_luaoa_v93_avoid_test.param)
+- [実機試験動画](projects/03_Lua障害物回避/videos/Rover_Lua_Obstacle_Avoidance.mp4)
+
+### 並行して管理している検証
+
+- **WebGCS遠隔操作**: WebGCSのRC Override経路と、携帯回線テザリング、Rpanion、Tailscale、DigitalOceanを使う遠隔操作手順を記録
+- **TELEM2 GPS検証**: Pixhawk 2.4.8のTELEM2へNEO-M8Nを接続し、GPS認識とUBXパススルーを確認
+
+TELEM2 GPS検証はPixhawk 2.4.8を対象とした別検証です。現在のCC-02通常運用構成であるPixhawk 6C Mini + M10 GPSと混同しないでください。
+
+## サブプロジェクト
+
+| 番号 | プロジェクト | 状態 / 主な内容 |
+| --- | --- | --- |
+| 01 | [FC換装](projects/01_FC換装/README.md) | Pixhawk 6C Miniへの換装、配線、ArduRover導入、換装前後パラメータ |
+| 02 | [チューニング](projects/02_チューニング/README.md) | 低速走行、旋回、フェイルセーフ、標準OA、QuikTune、代表ログ |
+| 03 | [Lua障害物回避](projects/03_Lua障害物回避/README.md) | SITLから実機限定試験へ移行。一連の回避を確認、定量評価は継続 |
+| 04 | [WebGCS遠隔操作](projects/04_WebGCS遠隔操作/README.md) | RC Overrideと携帯回線経由の遠隔操作手順 |
+| 05 | [TELEM2 GPS検証](projects/05_TELEM2_GPS検証/README.md) | Pixhawk 2.4.8 + NEO-M8NのGPS認識、UBXパススルー |
+
+配置方針は [サブプロジェクト一覧](projects/README.md) にまとめています。
 
 ## リポジトリ構成
 
-- `projects/` - FC換装、チューニング、Lua障害物回避などのサブプロジェクト。関連するパラメータ、ログ、動画、写真も各プロジェクト内で管理
-- `docs/` - 概要、現在状況、トラブルシュート、部品リストなど、プロジェクト横断の共通資料
-- `cad/` - Codexで作成したOpenSCADコードと、3Dプリント用にエクスポートしたSTL
-- `diagrams/` - 配線図、構成図、信号系統図
-- `notes/` - 未整理メモ、一時メモ、判断メモ
-- `参考資料/` - パーツメーカー公式Doc、ピン配列、配線図、CADなどの保存資料
+```text
+.
+├─ projects/   テーマ別の本文、パラメータ、ログ、写真、動画
+├─ docs/       全体概要、現在状況、管理手順、共通資料
+├─ cad/        OpenSCAD設計元と3Dプリント用STL
+├─ diagrams/   配線図、構成図、信号系統図の管理
+├─ notes/      未整理メモ、一時メモ、判断メモ
+├─ output/     文書から生成したPDFなどの出力
+└─ 参考資料/   メーカー資料とrover-gcs関連資料の索引・保存物
+```
 
-## 管理方針
-
-このリポジトリには、実機の整備記録として必要なものだけを入れます。
-
-入れるもの:
-
-- FC換装記録
-- 配線写真
-- ArduRoverパラメータ
-- チューニングログ
-- 走行試験記録
-- 再解析価値の高い代表 `.bin` ログ
-- 公開用動画
-- 部品リスト
-- 実機用小物部品のCAD設計元とSTL出力
-- トラブルシュート
-
-入れないもの:
-
-- Reactコード
-- FastAPIコード
-- GCSのUI改修
-- Webアプリの実装
-
-## 大容量ファイルとGit LFS
-
-代表ログと公開用動画はGit LFSで管理します。
-
-Git LFS対象:
-
-- `projects/**/logs/accepted/**/*.bin`
-- `projects/**/logs/accepted/**/*.BIN`
-- `projects/**/logs/accepted/**/*.ulg`
-- `projects/**/logs/accepted/**/*.tlog`
-- `projects/**/videos/**/*.mp4`
-- `projects/**/videos/**/*.mov`
-
-方針:
-
-- すべての生ログを入れるのではなく、再解析価値が高い代表ログだけを該当プロジェクトの `logs/accepted/` に置く。
-- GPS位置、Home位置、走行軌跡を含むログは、公開リポジトリに置く前に公開可否を確認する。
-- 日々の試験記録は該当プロジェクトの `logs/test_runs/` に残す。
-- 公開用動画は該当プロジェクトの `videos/` に置く。
-- 写真はGitHubで閲覧しやすいサイズへ縮小し、該当プロジェクトの `photos/` に置く。
-
-代表ログと動画の一覧:
-
-- [パラメータ管理](docs/パラメータ管理.md)
-- [ログ管理](docs/ログ管理.md)
-- [動画管理](docs/動画管理.md)
-- [写真管理](docs/写真管理.md)
+プロジェクト固有の成果物は、それぞれの`projects/<番号_名称>/`配下へ置きます。複数プロジェクトから参照する状態整理や管理表は`docs/`へ置きます。
 
 ## 主要ドキュメント
 
-番号順が、実機作業の流れです。
-
-### 全体把握
+### 最初に読む
 
 - [概要](docs/00_概要.md)
 - [現在状況](docs/01_現在状況.md)
 - [サブプロジェクト一覧](projects/README.md)
+- [ハードウェア判断ルール](docs/hardware-assumptions.md)
 
-### FC換装
+### FC換装と実機設定
 
 - [FC換装計画](projects/01_FC換装/02_FC換装計画.md)
-- [Pixhawk 6C mini換装メモ](projects/01_FC換装/03_Pixhawk6Cmini換装メモ.md)
+- [Pixhawk 6C Mini換装メモ](projects/01_FC換装/03_Pixhawk6Cmini換装メモ.md)
 - [配線](projects/01_FC換装/04_配線.md)
 - [ArduRoverインストール設定手順](projects/01_FC換装/05_ArduRoverインストール設定手順.md)
-
-### 換装後確認
-
 - [ArduRoverパラメータ](projects/01_FC換装/06_ArduRoverパラメータ.md)
 - [走行試験](projects/01_FC換装/07_走行試験.md)
 
@@ -124,19 +111,15 @@ Git LFS対象:
 - [ArduRoverチューニング手順](projects/02_チューニング/08_ArduRoverチューニング手順.md)
 - [チューニングログ](projects/02_チューニング/09_チューニングログ.md)
 
-### 障害物回避 / Lua
+### Lua障害物回避
 
-- [Lua障害物回避プロジェクト概要](projects/03_Lua障害物回避/README.md)
-- [Rover SITL前方Rangefinder / 標準OA / Lua設定手順](projects/03_Lua障害物回避/01_RoverSITL前方Rangefinder設定手順.md)
-- [開発検討: LuaとC++独自モードの実装判断](projects/03_Lua障害物回避/今後の開発検討/LuaとC++の実装判断.md)
-- [開発検討: Guided位置指定対応Lua障害物回避仕様書](projects/03_Lua障害物回避/今後の開発検討/Guided位置指定対応Lua障害物回避仕様書.md)
+- [SITL BendyRuler実行手順](projects/03_Lua障害物回避/00_SITL_BendyRuler実行手順.md)
+- [SITL前方Rangefinder / 標準OA / Lua設定手順](projects/03_Lua障害物回避/01_RoverSITL前方Rangefinder設定手順.md)
 - [SITL Luaサンプルスクリプト](projects/03_Lua障害物回避/05_SITL_Luaサンプルスクリプト.md)
 - [最低限Guided回避Lua解説](projects/03_Lua障害物回避/06_MinGuided回避Lua解説.md)
-- [Lua障害物回避 実機テスト手順](projects/03_Lua障害物回避/07_実機テスト手順.md)
-- [SITLから実機移行で起きた問題と再発防止](projects/03_Lua障害物回避/08_SITLから実機移行で起きた問題と再発防止.md)
-- [2026-07-27 Lua試験後パラメータ](projects/03_Lua障害物回避/params/20260727_01_after_luaoa_v93_avoid_test.param)
-- [Lua障害物回避動画](projects/03_Lua障害物回避/videos/Rover_Lua_Obstacle_Avoidance.mp4)
-- [仮想ポストKML表示補助](projects/03_Lua障害物回避/補助機能/10_MP_仮想ポストKML表示補助.md)
+- [Mission Planner前方距離表示確認](projects/03_Lua障害物回避/補助機能/11_MissionPlanner_前方距離表示確認.md)
+- [REPLでLua APIを確認する](projects/03_Lua障害物回避/補助機能/12_REPLでLuaAPIを確認する.md)
+- [キーボード操縦手順](projects/03_Lua障害物回避/補助機能/20_キーボード操縦手順.md)
 
 ### WebGCS遠隔操作
 
@@ -145,13 +128,56 @@ Git LFS対象:
 
 ### TELEM2 GPS検証
 
-- [ArduPilot GPS TELEM2 作業メモ](projects/05_TELEM2_GPS検証/2026-07-21_ArduPilot_GPS_TELEM2_作業メモ.md)
+- [ArduPilot GPS TELEM2作業メモ](projects/05_TELEM2_GPS検証/2026-07-21_ArduPilot_GPS_TELEM2_作業メモ.md)
 - [Pixhawk 2.4.8 TELEM2 GPSパススルー確認手順](projects/05_TELEM2_GPS検証/2026-07-22_Pixhawk248_TELEM2_GPSパススルー確認手順.md)
+- [確認手順PDF](output/pdf/2026-07-22_Pixhawk248_TELEM2_GPSパススルー確認手順.pdf)
 
-### 参照
+### 共通資料と管理表
 
 - [トラブルシュート](docs/10_トラブルシュート.md)
 - [部品リスト](docs/11_部品リスト.md)
+- [ISDT 608PD LiPo放電・保管手順](docs/12_ISDT608PD_LiPo放電_保管手順.md)
 - [DigitalOcean運用メモ](docs/13_DigitalOcean運用メモ.md)
-- [ハードウェア判断ルール](docs/hardware-assumptions.md)
+- [パラメータ管理](docs/パラメータ管理.md)
+- [ログ管理](docs/ログ管理.md)
+- [写真管理](docs/写真管理.md)
+- [動画管理](docs/動画管理.md)
 - [CADフォルダ説明](cad/README.md)
+- [図面管理](diagrams/図面管理.md)
+- [メモ管理](notes/メモ管理.md)
+- [参考資料一覧](参考資料/資料一覧.md)
+
+## 記録と安全の方針
+
+- パラメータの表示値やデフォルト値だけで正しいと判断せず、対象機体、ファームウェア、配線、実機ログを対応付ける。
+- 室内Manual試験用の一時設定、通常運用の正本、LuaやBendyRulerの実験設定を分けて保存する。
+- PWMや状態遷移の確認だけを実車の移動証明にせず、必要に応じて`RCOU`、速度、位置、目視動画を組み合わせる。
+- Compass Orientationは外装の矢印だけで決めず、北・東・南・西へ向けたMission PlannerのHUD方位で確認する。
+- GPS位置、Home位置、走行軌跡を含むログは、公開前に公開可否を確認する。
+
+## Git LFS
+
+再解析価値の高い代表ログと公開用動画はGit LFSで管理します。
+
+```bash
+git lfs install
+git clone https://github.com/zorosdrone/cc02-ardurover-build-log.git
+```
+
+主なGit LFS対象:
+
+- `projects/**/logs/accepted/`内の`.bin`、`.BIN`、`.ulg`、`.tlog`
+- `projects/**/videos/`内の`.mp4`、`.MP4`、`.mov`、`.MOV`
+
+すべての生ログは保存せず、代表ログだけを`logs/accepted/`へ置きます。各試験の条件、結果、判断は`logs/test_runs/`のMarkdownへ残します。
+
+## このリポジトリに入れないもの
+
+次のWebアプリ実装は [rover-gcs](https://github.com/zorosdrone/rover-gcs) 側で管理します。
+
+- React / Viteのフロントエンドコード
+- FastAPIバックエンドコード
+- WebGCSのUI実装
+- Webアプリのデプロイ構成
+
+このリポジトリには、WebGCSをCC-02実機で使うためのパラメータ、接続手順、試験結果だけを保存します。
