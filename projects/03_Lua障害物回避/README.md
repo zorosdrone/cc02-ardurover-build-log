@@ -205,7 +205,7 @@ QuikTune用スクリプトとの同時実行も避ける。新しいLua試験用
 - [開発検討: LuaとC++独自モードの実装判断](今後の開発検討/LuaとC++の実装判断.md)
 - [開発検討: Guided位置指定対応Lua障害物回避仕様書](今後の開発検討/Guided位置指定対応Lua障害物回避仕様書.md)
 - [SITL Luaサンプルスクリプト](05_SITL_Luaサンプルスクリプト.md)
-- [最低限Guided回避Lua解説](06_MinGuided回避Lua解説.md)
+- [SITL用Guided障害物回避Luaの仕組みと動作解説](06_SITL用Guided障害物回避Lua_仕組みと動作解説.md)
 - [Lua障害物回避 実機テスト手順](07_実機テスト手順.md)
 - [SITLから実機移行で起きた問題と再発防止](08_SITLから実機移行で起きた問題と再発防止.md)
 - [2026-07-26 Lua後退失敗 BINログ解析](logs/test_runs/20260726_01_lua_backup_failure_bin_analysis.md)

@@ -1,4 +1,4 @@
-# MinGuided回避Lua解説
+# SITL用Guided障害物回避Luaの仕組みと動作解説
 
 更新日: 2026-06-30
 

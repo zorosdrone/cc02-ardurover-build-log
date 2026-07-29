@@ -462,4 +462,4 @@ ahrs:get_location()
 - このフォルダの関連資料
   - `../01_RoverSITL前方Rangefinder設定手順.md`
   - `../05_SITL_Luaサンプルスクリプト.md`
-  - `../06_MinGuided回避Lua解説.md`
+  - `../06_SITL用Guided障害物回避Lua_仕組みと動作解説.md`

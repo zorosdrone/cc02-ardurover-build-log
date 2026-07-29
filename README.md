@@ -116,7 +116,7 @@ TELEM2 GPS検証はPixhawk 2.4.8を対象とした別検証です。現在のCC-
 - [SITL BendyRuler実行手順](projects/03_Lua障害物回避/00_SITL_BendyRuler実行手順.md)
 - [SITL前方Rangefinder / 標準OA / Lua設定手順](projects/03_Lua障害物回避/01_RoverSITL前方Rangefinder設定手順.md)
 - [SITL Luaサンプルスクリプト](projects/03_Lua障害物回避/05_SITL_Luaサンプルスクリプト.md)
-- [最低限Guided回避Lua解説](projects/03_Lua障害物回避/06_MinGuided回避Lua解説.md)
+- [SITL用Guided障害物回避Luaの仕組みと動作解説](projects/03_Lua障害物回避/06_SITL用Guided障害物回避Lua_仕組みと動作解説.md)
 - [Mission Planner前方距離表示確認](projects/03_Lua障害物回避/補助機能/11_MissionPlanner_前方距離表示確認.md)
 - [REPLでLua APIを確認する](projects/03_Lua障害物回避/補助機能/12_REPLでLuaAPIを確認する.md)
 - [キーボード操縦手順](projects/03_Lua障害物回避/補助機能/20_キーボード操縦手順.md)
