@@ -9,7 +9,7 @@
 | 03 | [Lua障害物回避](03_Lua障害物回避/README.md) | SITL、Luaスクリプト、実機試験、画像・動画・ログ |
 | 04 | [WebGCS遠隔操作](04_WebGCS遠隔操作/README.md) | RC Override、携帯回線経由の遠隔操作、関連パラメータ |
 | 05 | [TELEM2 GPS検証](05_TELEM2_GPS検証/README.md) | Pixhawk 2.4.8のTELEM2 GPS接続とパススルー確認 |
-| 06 | [HC-SR04左右距離計](06_HC-SR04左右距離計/README.md) | 左右HC-SR04、GPIO接続、CANポート給電、ArduPilot設定・実機確認 |
+| 06 | [HC-SR04左右距離計](06_HC-SR04左右距離計/README.md) | 左右HC-SR04、AUX GPIO・6Vサーボレール接続、ArduPilot設定・実機確認 |
 
 ## 配置方針
 
