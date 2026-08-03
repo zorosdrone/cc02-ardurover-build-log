@@ -70,6 +70,8 @@ TELEM2 GPS検証はPixhawk 2.4.8を対象とした別検証です。現在のCC-
 | 03 | [Lua障害物回避](projects/03_Lua障害物回避/README.md) | SITLから実機限定試験へ移行。一連の回避を確認、定量評価は継続 |
 | 04 | [WebGCS遠隔操作](projects/04_WebGCS遠隔操作/README.md) | RC Overrideと携帯回線経由の遠隔操作手順 |
 | 05 | [TELEM2 GPS検証](projects/05_TELEM2_GPS検証/README.md) | Pixhawk 2.4.8 + NEO-M8NのGPS認識、UBXパススルー |
+| 06 | [HC-SR04左右距離計](projects/06_HC-SR04左右距離計/README.md) | 左右HC-SR04のGPIO接続、電源方式、ArduPilot設定の検討 |
+| 07 | [Pi Zero 2 Wカメラ](projects/07_PiZero2Wカメラ/README.md) | KEYESTUDIO OV5647のCSI接続、カメラ環境修復、静止画・1080p動画撮影確認 |
 
 配置方針は [サブプロジェクト一覧](projects/README.md) にまとめています。
 
@@ -131,6 +133,11 @@ TELEM2 GPS検証はPixhawk 2.4.8を対象とした別検証です。現在のCC-
 - [ArduPilot GPS TELEM2作業メモ](projects/05_TELEM2_GPS検証/2026-07-21_ArduPilot_GPS_TELEM2_作業メモ.md)
 - [Pixhawk 2.4.8 TELEM2 GPSパススルー確認手順](projects/05_TELEM2_GPS検証/2026-07-22_Pixhawk248_TELEM2_GPSパススルー確認手順.md)
 - [確認手順PDF](output/pdf/2026-07-22_Pixhawk248_TELEM2_GPSパススルー確認手順.pdf)
+
+### Pi Zero 2 Wカメラ
+
+- [Pi Zero 2 Wカメラプロジェクト概要](projects/07_PiZero2Wカメラ/README.md)
+- [OV5647カメラのセットアップ・撮影テスト](projects/07_PiZero2Wカメラ/2026-08-03_PiZero2W_OV5647カメラ_セットアップ撮影テスト.md)
 
 ### 共通資料と管理表
 

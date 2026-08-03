@@ -10,6 +10,7 @@
 | 04 | [WebGCS遠隔操作](04_WebGCS遠隔操作/README.md) | RC Override、携帯回線経由の遠隔操作、関連パラメータ |
 | 05 | [TELEM2 GPS検証](05_TELEM2_GPS検証/README.md) | Pixhawk 2.4.8のTELEM2 GPS接続とパススルー確認 |
 | 06 | [HC-SR04左右距離計](06_HC-SR04左右距離計/README.md) | 左右HC-SR04、AUX GPIO・6Vサーボレール接続、ArduPilot設定・実機確認 |
+| 07 | [Pi Zero 2 Wカメラ](07_PiZero2Wカメラ/README.md) | KEYESTUDIO OV5647のCSI接続、カメラ環境修復、静止画・1080p動画撮影確認 |
 
 ## 配置方針
 
