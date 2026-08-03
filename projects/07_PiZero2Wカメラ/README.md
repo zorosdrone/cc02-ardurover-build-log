@@ -14,6 +14,8 @@ Rover搭載のRaspberry Pi Zero 2 WへKEYESTUDIO 5MPカメラを接続し、認�
 ## 資料
 
 - [Pi Zero 2 W OV5647カメラのセットアップ・撮影テスト](2026-08-03_PiZero2W_OV5647カメラ_セットアップ撮影テスト.md)
+- [RpanionとMission Plannerの手動映像運用](2026-08-03_Rpanion_MissionPlanner_手動映像運用.md)
+- [Pi Zero 2 Wカメラ用サーボ式パン・チルトジンバル計画](2026-08-03_サーボ式パンチルトジンバル計画.md)
 
 ## 2026-08-03確認結果
 
@@ -22,4 +24,6 @@ Rover搭載のRaspberry Pi Zero 2 WへKEYESTUDIO 5MPカメラを接続し、認�
 - 2592×1944 JPEG静止画の撮影に成功した。
 - 1920×1080、30 fps、約5秒のH.264動画撮影に成功した。
 - 既存のカメラ関連パッケージに版不整合があり、カメラ関連パッケージだけを更新した。
-- ArduPilotパラメータ、Rpanion設定、MAVLink設定は変更していない。
+- RpanionのRTSP配信をVLCとMission Plannerで確認した。
+- Mission Plannerへは`Set GStreamer Source`で手動設定して運用する。
+- MAVLinkカメラ広告による自動検出は、Rpanion v0.11.0とMission Planner 1.3.83の構成では成功しなかった。
