@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180">
 <rect width="1600" height="1180" fill="#f4f7fb"/>
 <text x="45" y="30" font-family="Meiryo,sans-serif" font-size="36" fill="#142b43" dominant-baseline="text-before-edge">01  全体配線図 — CC-02 / ArduRover</text>
-<text x="45" y="85" font-family="Meiryo,sans-serif" font-size="20" fill="#536170" dominant-baseline="text-before-edge">基準：Pixhawk 6C Mini Model A + M10 GPS｜青＝信号を含むケーブル、赤＝電源、点線＝経路を実機確認</text>
+<text x="45" y="85" font-family="Meiryo,sans-serif" font-size="20" fill="#536170" dominant-baseline="text-before-edge">基準：Pixhawk 6C Mini Model A + M10 GPS｜青＝信号を含むケーブル、赤＝電源、点線＝詳細経路を省略</text>
 <rect x="45" y="145" width="360" height="135" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
 <text x="63" y="160" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">Zeee 走行用バッテリー</text>
 <text x="63" y="201" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">3S 2200mAh 120C（部品表）</text>
@@ -32,7 +32,7 @@
 <rect x="45" y="650" width="360" height="115" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
 <text x="63" y="665" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">DS3218 / 270°サーボ</text>
 <text x="63" y="706" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">MAIN 1へ3線接続（所有者申告）</text>
-<text x="63" y="736" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">6V対応・必要電流は仕様照合待ち</text>
+<text x="63" y="736" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">ESC内蔵BECから給電</text>
 <path d="M550 675 L405 675" stroke="#1769aa" fill="none" stroke-width="3"/>
 <polygon points="405,675 415.8053652282321,669.7804135906653 415.8053652282321,680.2195864093347" fill="#1769aa"/>
 <rect x="45" y="840" width="360" height="165" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
@@ -44,10 +44,10 @@
 <path d="M455 775 L455 900" stroke="#1769aa" fill="none" stroke-width="3"/>
 <path d="M455 900 L405 900" stroke="#1769aa" fill="none" stroke-width="3"/>
 <polygon points="405,900 415.8053652282321,894.7804135906653 415.8053652282321,905.2195864093347" fill="#1769aa"/>
-<text x="55" y="320" font-family="Meiryo,sans-serif" font-size="20" fill="#9b6100" dominant-baseline="text-before-edge">ESC主電源への経路は要確認</text>
+<text x="55" y="320" font-family="Meiryo,sans-serif" font-size="20" fill="#9b6100" dominant-baseline="text-before-edge">主電源：実機は接続・動作済み</text>
 <text x="55" y="353" font-family="Meiryo,sans-serif" font-size="18" fill="#9b6100" dominant-baseline="text-before-edge">遮断：バッテリー近くのXT60</text>
-<text x="55" y="383" font-family="Meiryo,sans-serif" font-size="18" fill="#9b6100" dominant-baseline="text-before-edge">PM02負荷側・隠れた線は要確認</text>
-<text x="55" y="420" font-family="Meiryo,sans-serif" font-size="18" fill="#9b6100" dominant-baseline="text-before-edge">※未確定の主電源経路は図示省略</text>
+<text x="55" y="383" font-family="Meiryo,sans-serif" font-size="18" fill="#9b6100" dominant-baseline="text-before-edge">写真で隠れた中継部分は省略</text>
+<text x="55" y="420" font-family="Meiryo,sans-serif" font-size="18" fill="#9b6100" dominant-baseline="text-before-edge">※詳細な線の取り回しは図示省略</text>
 <rect x="1170" y="355" width="385" height="115" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
 <text x="1188" y="370" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">M10 GPS / Compass</text>
 <text x="1188" y="411" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">GPS1へ適合10芯ケーブル</text>
@@ -76,5 +76,5 @@
 <text x="480" y="982" font-family="Meiryo,sans-serif" font-size="25" fill="#9b6100" dominant-baseline="text-before-edge">電源を混同しない</text>
 <text x="480" y="1020" font-family="Meiryo,sans-serif" font-size="21" fill="#142b43" dominant-baseline="text-before-edge">PM02 → FC本体 / ESC内蔵BEC → MAIN 3の + → MAIN 1の + → サーボ</text>
 <text x="480" y="1055" font-family="Meiryo,sans-serif" font-size="21" fill="#142b43" dominant-baseline="text-before-edge">RC INの +5V とサーボレールの +6V は別。PiへTELEM1の5Vをつながない。</text>
-<text x="45" y="1135" font-family="Meiryo,sans-serif" font-size="18" fill="#536170" dominant-baseline="text-before-edge">2026-09-05 作成｜資料に基づく接続図・実機未検証｜端子の物理配置・縮尺を示す図ではありません</text>
+<text x="45" y="1135" font-family="Meiryo,sans-serif" font-size="18" fill="#536170" dominant-baseline="text-before-edge">2026-09-05 作成｜換装・動作確認済み機体の配線記録｜端子の物理配置・縮尺を示す図ではありません</text>
 </svg>

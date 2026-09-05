@@ -46,5 +46,5 @@
 <text x="70" y="980" font-family="Meiryo,sans-serif" font-size="22" fill="#142b43" dominant-baseline="text-before-edge">MAIN 1 / 3：S → サーボ / ESC信号、+ ↔ サーボ電源、− ↔ GND（上下は実機印字で確認）</text>
 <text x="70" y="1021" font-family="Meiryo,sans-serif" font-size="22" fill="#142b43" dominant-baseline="text-before-edge">I2C → OLED：Pin1 +5V → VCC、Pin2 SCL → SCL、Pin3 SDA → SDA、Pin4 GND → GND</text>
 <text x="70" y="1060" font-family="Meiryo,sans-serif" font-size="19" fill="#536170" dominant-baseline="text-before-edge">TX＝送信、RX＝受信、GND＝共通の基準。線の交差ではなく、端子の役割で接続を追う。</text>
-<text x="45" y="1135" font-family="Meiryo,sans-serif" font-size="18" fill="#536170" dominant-baseline="text-before-edge">2026-09-05 作成｜資料に基づく接続図・実機未検証｜端子の物理配置・縮尺を示す図ではありません</text>
+<text x="45" y="1135" font-family="Meiryo,sans-serif" font-size="18" fill="#536170" dominant-baseline="text-before-edge">2026-09-05 作成｜換装・動作確認済み機体の配線記録｜端子の物理配置・縮尺を示す図ではありません</text>
 </svg>

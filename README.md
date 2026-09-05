@@ -6,7 +6,7 @@ WebGCSアプリ本体のソースコードは別リポジトリの [rover-gcs](h
 
 ## 現在の状態
 
-最終スナップショットは **2026-07-28** です。詳細と次回作業は [現在状況](docs/01_現在状況.md) を参照してください。
+全体状況の更新日は **2026-09-05** です。**FC換装・基本走行の動作確認は完了しており、現在は配線図や説明などの公開資料を整備しています。** 追加機能は個別に検証しています。実機確認日と各プロジェクトの状況は [現在状況](docs/01_現在状況.md) を参照してください。
 
 ### 通常運用の基準
 
@@ -71,7 +71,7 @@ TELEM2 GPS検証はPixhawk 2.4.8を対象とした別検証です。現在のCC-
 | 04 | [WebGCS遠隔操作](projects/04_WebGCS遠隔操作/README.md) | RC Overrideと携帯回線経由の遠隔操作手順 |
 | 05 | [TELEM2 GPS検証](projects/05_TELEM2_GPS検証/README.md) | Pixhawk 2.4.8 + NEO-M8NのGPS認識、UBXパススルー |
 | 06 | [HC-SR04左右距離計](projects/06_HC-SR04左右距離計/README.md) | 左右HC-SR04のGPIO接続、電源方式、ArduPilot設定の検討 |
-| 07 | [Pi Zero 2 Wカメラ](projects/07_PiZero2Wカメラ/README.md) | KEYESTUDIO OV5647のCSI接続、カメラ環境修復、静止画・1080p動画撮影確認 |
+| 07 | [Pi Zero 2 Wカメラ](projects/07_PiZero2Wカメラ/README.md) | KEYESTUDIO OV5647のCSI接続、カメラ環境修復、静止画・1080p動画撮影、RTSP映像の手動受信を確認。パンチルトは計画段階 |
 
 配置方針は [サブプロジェクト一覧](projects/README.md) にまとめています。
 
