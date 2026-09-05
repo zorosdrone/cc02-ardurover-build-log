@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180">
+<rect width="1600" height="1180" fill="#f4f7fb"/>
+<text x="45" y="30" font-family="Meiryo,sans-serif" font-size="36" fill="#142b43" dominant-baseline="text-before-edge">01  全体配線図 — CC-02 / ArduRover</text>
+<text x="45" y="85" font-family="Meiryo,sans-serif" font-size="20" fill="#536170" dominant-baseline="text-before-edge">基準：Pixhawk 6C Mini Model A + M10 GPS｜青＝信号を含むケーブル、赤＝電源、点線＝経路を実機確認</text>
+<rect x="45" y="145" width="360" height="135" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
+<text x="63" y="160" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">Zeee 走行用バッテリー</text>
+<text x="63" y="201" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">3S 2200mAh 120C（部品表）</text>
+<text x="63" y="231" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">バッテリー近くのXT60を抜く</text>
+<rect x="610" y="145" width="380" height="135" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
+<text x="628" y="160" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">PM02 パワーモジュール</text>
+<text x="628" y="201" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">電源の降圧＋電圧・電流検出</text>
+<text x="628" y="231" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">FC同梱品の専用6芯ケーブル</text>
+<path d="M405 210 L610 210" stroke="#c33435" fill="none" stroke-width="3" stroke-dasharray="10 8"/>
+<polygon points="610,210 599.1946347717678,215.21958640933477 599.1946347717678,204.78041359066523" fill="#c33435"/>
+<text x="430" y="170" font-family="Meiryo,sans-serif" font-size="20" fill="#9b6100" dominant-baseline="text-before-edge">入力側へ</text>
+<rect x="550" y="355" width="500" height="555" rx="12" fill="#e9f1fb" stroke="#7b9cbd" stroke-width="2"/>
+<text x="575" y="375" font-family="Meiryo,sans-serif" font-size="32" fill="#142b43" dominant-baseline="text-before-edge">Pixhawk 6C Mini</text>
+<text x="575" y="445" font-family="Meiryo,sans-serif" font-size="23" fill="#142b43" dominant-baseline="text-before-edge">POWER  ← PM02</text>
+<text x="575" y="530" font-family="Meiryo,sans-serif" font-size="23" fill="#142b43" dominant-baseline="text-before-edge">RC IN   S / + / −</text>
+<text x="575" y="630" font-family="Meiryo,sans-serif" font-size="23" fill="#142b43" dominant-baseline="text-before-edge">MAIN 1   S / + / −</text>
+<text x="575" y="740" font-family="Meiryo,sans-serif" font-size="23" fill="#142b43" dominant-baseline="text-before-edge">MAIN 3   S / + / −</text>
+<text x="575" y="815" font-family="Meiryo,sans-serif" font-size="23" fill="#142b43" dominant-baseline="text-before-edge">内部：MAINの + は共通サーボ電源</text>
+<path d="M970 280 L970 445" stroke="#c33435" fill="none" stroke-width="3"/>
+<polygon points="970,445 964.7804135906653,434.1946347717679 975.2195864093347,434.1946347717679" fill="#c33435"/>
+<text x="715" y="305" font-family="Meiryo,sans-serif" font-size="18" fill="#c33435" dominant-baseline="text-before-edge">FC用 約5V＋検出信号</text>
+<rect x="45" y="480" width="360" height="125" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
+<text x="63" y="495" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">RadioLink R8EF V1.6</text>
+<text x="63" y="536" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">S.BUS / CH1 → RC IN</text>
+<text x="63" y="566" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">S・+5V・GND の3本</text>
+<path d="M405 550 L550 550" stroke="#1769aa" fill="none" stroke-width="3"/>
+<polygon points="550,550 539.1946347717678,555.2195864093347 539.1946347717678,544.7804135906653" fill="#1769aa"/>
+<rect x="45" y="650" width="360" height="115" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
+<text x="63" y="665" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">DS3218 / 270°サーボ</text>
+<text x="63" y="706" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">MAIN 1へ3線接続（所有者申告）</text>
+<text x="63" y="736" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">6V対応・必要電流は仕様照合待ち</text>
+<path d="M550 675 L405 675" stroke="#1769aa" fill="none" stroke-width="3"/>
+<polygon points="405,675 415.8053652282321,669.7804135906653 415.8053652282321,680.2195864093347" fill="#1769aa"/>
+<rect x="45" y="840" width="360" height="165" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
+<text x="63" y="855" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">ESC：QuicRun WP-1060</text>
+<text x="63" y="896" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">細い3線 → MAIN 3</text>
+<text x="63" y="926" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">赤線：BEC 6V / 3A → FCレール</text>
+<text x="63" y="956" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">太い線 → CC-02付属モーター</text>
+<path d="M550 775 L455 775" stroke="#1769aa" fill="none" stroke-width="3"/>
+<path d="M455 775 L455 900" stroke="#1769aa" fill="none" stroke-width="3"/>
+<path d="M455 900 L405 900" stroke="#1769aa" fill="none" stroke-width="3"/>
+<polygon points="405,900 415.8053652282321,894.7804135906653 415.8053652282321,905.2195864093347" fill="#1769aa"/>
+<text x="55" y="320" font-family="Meiryo,sans-serif" font-size="20" fill="#9b6100" dominant-baseline="text-before-edge">ESC主電源への経路は要確認</text>
+<text x="55" y="353" font-family="Meiryo,sans-serif" font-size="18" fill="#9b6100" dominant-baseline="text-before-edge">遮断：バッテリー近くのXT60</text>
+<text x="55" y="383" font-family="Meiryo,sans-serif" font-size="18" fill="#9b6100" dominant-baseline="text-before-edge">PM02負荷側・隠れた線は要確認</text>
+<text x="55" y="420" font-family="Meiryo,sans-serif" font-size="18" fill="#9b6100" dominant-baseline="text-before-edge">※未確定の主電源経路は図示省略</text>
+<rect x="1170" y="355" width="385" height="115" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
+<text x="1188" y="370" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">M10 GPS / Compass</text>
+<text x="1188" y="411" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">GPS1へ適合10芯ケーブル</text>
+<text x="1188" y="441" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">GPSとコンパスをまとめて接続</text>
+<path d="M1050 420 L1170 420" stroke="#1769aa" fill="none" stroke-width="3"/>
+<text x="1070" y="385" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">GPS1</text>
+<rect x="1170" y="510" width="385" height="115" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
+<text x="1188" y="525" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">Raspberry Pi Zero 2 WH</text>
+<text x="1188" y="566" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">TELEM1：TX / RX / GNDのみ</text>
+<text x="1188" y="596" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">別積みのモバイルバッテリー給電</text>
+<path d="M1050 570 L1170 570" stroke="#1769aa" fill="none" stroke-width="3"/>
+<text x="1060" y="535" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">TELEM1</text>
+<rect x="1170" y="665" width="385" height="115" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
+<text x="1188" y="680" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">TF-Luna LiDAR</text>
+<text x="1188" y="721" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">TELEM2：5V / TX / RX / GND</text>
+<text x="1188" y="751" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">今回の緑線がGND。詳細は図02</text>
+<path d="M1050 725 L1170 725" stroke="#1769aa" fill="none" stroke-width="3"/>
+<text x="1060" y="690" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">TELEM2</text>
+<rect x="1170" y="820" width="385" height="110" rx="12" fill="#ffffff" stroke="#c9d4e0" stroke-width="2"/>
+<text x="1188" y="835" font-family="Meiryo,sans-serif" font-size="25" fill="#142b43" dominant-baseline="text-before-edge">OLED（任意）</text>
+<text x="1188" y="876" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">独立I2C：4本</text>
+<text x="1188" y="906" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">表示成功の記録あり。図02参照</text>
+<path d="M1050 870 L1170 870" stroke="#1769aa" fill="none" stroke-width="3"/>
+<text x="1070" y="835" font-family="Meiryo,sans-serif" font-size="20" fill="#142b43" dominant-baseline="text-before-edge">I2C</text>
+<rect x="460" y="965" width="1095" height="135" rx="12" fill="#fff4dd" stroke="#d7aa4b" stroke-width="2"/>
+<text x="480" y="982" font-family="Meiryo,sans-serif" font-size="25" fill="#9b6100" dominant-baseline="text-before-edge">電源を混同しない</text>
+<text x="480" y="1020" font-family="Meiryo,sans-serif" font-size="21" fill="#142b43" dominant-baseline="text-before-edge">PM02 → FC本体 / ESC内蔵BEC → MAIN 3の + → MAIN 1の + → サーボ</text>
+<text x="480" y="1055" font-family="Meiryo,sans-serif" font-size="21" fill="#142b43" dominant-baseline="text-before-edge">RC INの +5V とサーボレールの +6V は別。PiへTELEM1の5Vをつながない。</text>
+<text x="45" y="1135" font-family="Meiryo,sans-serif" font-size="18" fill="#536170" dominant-baseline="text-before-edge">2026-09-05 作成｜資料に基づく接続図・実機未検証｜端子の物理配置・縮尺を示す図ではありません</text>
+</svg>

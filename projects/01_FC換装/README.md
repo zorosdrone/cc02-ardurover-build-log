@@ -7,6 +7,7 @@ Pixhawk 6C Miniへの換装、配線、ArduRover導入、換装後確認を管�
 - [FC換装計画](02_FC換装計画.md)
 - [Pixhawk 6C mini換装メモ](03_Pixhawk6Cmini換装メモ.md)
 - [配線](04_配線.md)
+- [配線図・ケーブル製作図](diagrams/README.md)
 - [ArduRoverインストール設定手順](05_ArduRoverインストール設定手順.md)
 - [ArduRoverパラメータ](06_ArduRoverパラメータ.md)
 - [走行試験](07_走行試験.md)

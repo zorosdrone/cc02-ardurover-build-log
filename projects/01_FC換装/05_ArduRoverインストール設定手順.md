@@ -170,7 +170,7 @@ ESC / モーター電源は接続せず、Pixhawk 6C MiniはUSB、またはPM02�
 
 現行Pixhawk 2.4.8Pro側の注意:
 
-- `projects/01_FC換装/photos/wiring/20260608_現行GPSコネクタ_爪下向き確認.JPG` では、現行GPSコネクタの爪/キーは下側に見える。
+- `projects/01_FC換装/photos/wiring/20260608_換装前GPSコネクタ_爪下向き確認.JPG` では、現行GPSコネクタの爪/キーは下側に見える。
 - そのため、一般的なJST-GHの「爪を上にした図」を現行2.4.8Pro側へそのまま当てはめない。
 - 現行で動いていたGPSコネクタの赤線を+5V側、黒線をGND側として扱い、6C Mini側JST-GHのPin 1/Pin 6へ対応させる。
 - 旧コネクタを6C Miniへ直接挿すのではなく、6C Mini側はJST-GH 6ピンケーブルを使って変換する。
