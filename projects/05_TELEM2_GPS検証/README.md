@@ -7,7 +7,7 @@ CC-02 RoverのGPS検証資料を管理する。現搭載のPixhawk 6C MiniとM10
 - [Pixhawk 6C Miniと現搭載M10 GPSのパススルー確認手順](2026-10-01_Pixhawk6Cmini_M10_GPSパススルー確認手順.md)
 - [ArduPilot GPS TELEM2 作業メモ](2026-07-21_ArduPilot_GPS_TELEM2_作業メモ.md)
 - [Pixhawk 2.4.8 TELEM2 GPSパススルー確認手順](2026-07-22_Pixhawk248_TELEM2_GPSパススルー確認手順.md)
-- [6C Mini GPS2・旧M8Nパススルー手順（調査済み・実機未確認）](2026-10-01_6Cmini_GPS2_旧M8Nパススルー手順.md)
+- [6C Mini・旧M8Nパススルー手順：TELEM2 / GPS2（GPS2でUBX受信確認、測位有効性は未確認）](2026-10-01_6Cmini_旧M8Nパススルー手順.md)
 
 ## 成果物
 
