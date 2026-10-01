@@ -35,6 +35,20 @@ NEO-M8N TX
 
 ## 2. TELEM2をGPSにする通常設定
 
+### USB COMポートを使うアプリの切り替え
+
+Mission Planner、u-center、Tera Termは、同じPixhawkのUSB COMポートを同時に開けない。パススルー実験にはu-centerが必要だが、設定時はMission Planner、GPS生データ確認時はu-centerへCOMポートを引き渡す。
+
+1. u-centerとTera Termのシリアル接続を切断する。COMポートを解放できない場合はアプリを終了する。
+2. PixhawkをUSB接続し、起動完了後にMission Plannerで対象のCOMポートと`115200`を選んで接続する。
+3. 通常設定の確認後、次節のパススルー設定を書き込む。
+4. **USBケーブルを挿したまま**Mission Plannerを切断し、完全に終了する。パススルー設定後はPixhawkを再起動しない。
+5. 第5節の手順で、u-centerから**同じCOMポート**を開く。本書の検証済み構成ではu-center側の速度は`230400`。
+
+2026-10-01の接続確認では、USBを抜くと消えたポートは`COM6`だった。Mission Plannerの「COM6へのアクセスが拒否されました」は、u-centerが使用していたことによるものとユーザーから報告された。COM番号はPCや接続環境で変わるため、作業時に確認する。
+
+切り替えの根拠: [ArduPilot公式 Serial Passthrough](https://ardupilot.org/rover/docs/common-serial-passthrough.html)は、設定後にGCSを切断し、USBを接続したままセンサー設定ソフトから同じCOMポートを開く手順を示している。
+
 Mission Plannerで次の値を設定する。
 
 ```text
@@ -216,7 +230,7 @@ GPS 1: detected u-blox
 
 | 現象 | 確認内容 |
 |---|---|
-| COMポートを開けない | Mission Planner、u-center、Tera TermのいずれかがCOMポートを使用中でないか |
+| COMポートを開けない／アクセスが拒否されました | 同じCOMをMission Planner、u-center、Tera Termで同時に開いていないか。使用中のアプリを切断または終了し、次のアプリで開く |
 | u-centerの接続表示は緑だがデータが出ない | ボーレートが`230400`か、`SERIAL_PASS2=2`か |
 | Tera Termで文字化けする | UBXバイナリのため通常。u-centerで解析する |
 | パススルー後にMission Plannerへ接続できない | Pixhawkを再起動し、`SERIAL_PASS2=-1`を確認 |
